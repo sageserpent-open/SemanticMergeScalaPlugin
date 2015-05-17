@@ -26,9 +26,16 @@ object Main extends App {
 
   val sourceFile = new PlainFile( """C:\Users\Gerard\OneDrive\Documents\Neptunium\src\main\scala-2.11\SomeThingToParse.scala""")
   val presentationCompiler: Global = new Global(settings, new ConsoleReporter(settings))
-  val tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
-  for (thing <- tree.children map (_.toString())) {
-    System.out.println(thing)
+  val tree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
+
+  val positions: List[presentationCompiler.Position] = tree.collect(PartialFunction(_.pos))
+
+  val snippets = tree.collect(PartialFunction(_.toString()))
+
+  for ((position, snippet) <- positions zip snippets) {
+    System.out.println(position)
+    System.out.println(snippet)
+    System.out.println("--------------------")
   }
 
   System.out.println("Made it here.")
