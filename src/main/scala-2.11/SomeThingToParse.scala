@@ -1,6 +1,3 @@
-/**
- * Created by Gerard on 16/05/2015.
- */
 class SomeThingToParse {
   val bert = 2
 
