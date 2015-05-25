@@ -1,3 +1,5 @@
+package com.sageSerpent.neptunium
+
 class SomeThingToParse {
   val bert = 2
 
