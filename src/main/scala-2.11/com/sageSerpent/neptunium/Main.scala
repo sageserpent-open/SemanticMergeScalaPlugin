@@ -6,6 +6,7 @@ package com.sageSerpent.neptunium
 
 import scalaz.concurrent.Task
 import scalaz.stream._
+import scalaz.{-\/, \/-}
 
 object Main extends App {
 
@@ -35,19 +36,16 @@ object Main extends App {
     }*/
 
   val pathsOfFiles = io.stdInLines takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
-  val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2)
+  val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2).takeWhile(2 == _.length)
   val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
-    try {
-      FileProcessor.discoverStructure(pathOfFileToBeProcessed, pathOfResultFile)
-      "OK"
-    }
-    catch {
-      case _: Throwable => "KO"
-    }
-  }
+    FileProcessor.discoverStructure(pathOfFileToBeProcessed, pathOfResultFile)
+  }.attempt
+  } |> process1.lift { case \/-(_) => "OK"
+  case -\/(_) => "KO"
   }
   val endToEndProcessing = statuses to io.stdOutLines
   private val endOfInputSentinelFromSemanticMerge = "end"
+
 
   endToEndProcessing.run.run
 }
