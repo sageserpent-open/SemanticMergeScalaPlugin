@@ -35,21 +35,19 @@ object Main extends App {
     }*/
 
   val pathsOfFiles = io.stdInLines takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
-  val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.zipWithPrevious.drop(1).scan(None: Option[(Option[String], String)]) { case (Some(_), _) => None
-  case (None, passThrough) => Some(passThrough)
-  }.collect { case Some(a) => a }
-  val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case (Some(pathOfFileToBeProcessed), pathOfResultFile) => Process eval Task {
+  val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2)
+  val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
     try {
       FileProcessor.discoverStructure(pathOfFileToBeProcessed, pathOfResultFile)
       "OK"
     }
     catch {
-      case _ => "KO"
+      case _: Throwable => "KO"
     }
   }
   }
   val endToEndProcessing = statuses to io.stdOutLines
-  private var endOfInputSentinelFromSemanticMerge = "end"
+  private val endOfInputSentinelFromSemanticMerge = "end"
 
   endToEndProcessing.run.run
 }
