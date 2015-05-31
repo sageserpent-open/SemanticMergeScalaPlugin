@@ -4,38 +4,36 @@
 
 package com.sageSerpent.neptunium
 
+import java.io.FileWriter
+
+import resource.managed
+
 import scalaz.concurrent.Task
 import scalaz.stream._
 import scalaz.{-\/, \/-}
 
 object Main extends App {
 
-  /*  val numberOfArguments = args.length
+  val numberOfArguments = args.length
 
-    val numberOfArgumentsExpected = 2
-    if (numberOfArgumentsExpected != numberOfArguments) {
-      throw new Error(
-        s"ERROR: expected $numberOfArgumentsExpected arguments, got $numberOfArguments.")
-    }
+  val numberOfArgumentsExpected = 2
+  if (numberOfArgumentsExpected != numberOfArguments) {
+    throw new Error(
+      s"ERROR: expected $numberOfArgumentsExpected arguments, got $numberOfArguments.")
+  }
+  val theOnlyModeHandled = "shell"
+  val acknowledgementFilePath = args(1)
 
-
-    var mode = args(0)
-
-    val theOnlyModeHandled = "shell"
-
-    if (!theOnlyModeHandled.equalsIgnoreCase(mode)) {
-      throw new Error(
-        s"ERROR, expect mode: $theOnlyModeHandled, requested mode was: $mode.")
-    }
-
-    val acknowledgementFilePath = args(1)
-
-    for (acknowledgementFileWriter <- managed(new FileWriter(acknowledgementFilePath))) {
-      var readyAcknowledgementToSemanticMerge = "READY"
-      acknowledgementFileWriter.write(readyAcknowledgementToSemanticMerge)
-    }*/
-
+  if (!theOnlyModeHandled.equalsIgnoreCase(mode)) {
+    throw new Error(
+      s"ERROR, expect mode: $theOnlyModeHandled, requested mode was: $mode.")
+  }
   val pathsOfFiles = io.stdInLines takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
+
+  for (acknowledgementFileWriter <- managed(new FileWriter(acknowledgementFilePath))) {
+    var readyAcknowledgementToSemanticMerge = "READY"
+    acknowledgementFileWriter.write(readyAcknowledgementToSemanticMerge)
+  }
   val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2).takeWhile(2 == _.length)
   val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
     FileProcessor.discoverStructure(pathOfFileToBeProcessed, pathOfResultFile)
@@ -45,6 +43,7 @@ object Main extends App {
   }
   val endToEndProcessing = statuses to io.stdOutLines
   private val endOfInputSentinelFromSemanticMerge = "end"
+  var mode = args(0)
 
 
   endToEndProcessing.run.run
