@@ -22,12 +22,18 @@ object Main extends App {
       s"ERROR: expected $numberOfArgumentsExpected arguments, got $numberOfArguments.")
   }
   val theOnlyModeHandled = "shell"
-  val acknowledgementFilePath = args(1)
+
+  val mode = args(0)
 
   if (!theOnlyModeHandled.equalsIgnoreCase(mode)) {
     throw new Error(
       s"ERROR, expect mode: $theOnlyModeHandled, requested mode was: $mode.")
   }
+
+  val acknowledgementFilePath = args(1)
+
+  val endOfInputSentinelFromSemanticMerge = "end"
+
   val pathsOfFiles = io.stdInLines takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
 
   for (acknowledgementFileWriter <- managed(new FileWriter(acknowledgementFilePath))) {
@@ -42,9 +48,6 @@ object Main extends App {
   case -\/(_) => "KO"
   }
   val endToEndProcessing = statuses to io.stdOutLines
-  private val endOfInputSentinelFromSemanticMerge = "end"
-  var mode = args(0)
-
 
   endToEndProcessing.run.run
 }

@@ -1,3 +1,9 @@
+import com.github.retronym.SbtOneJar._
+
+oneJarSettings
+
+mainClass := Some("com.sageSerpent.neptunium.Main")
+
 resolvers += "Scalaz Bintray Repo" at "https://dl.bintray.com/scalaz/releases"
 
 name := "Neptunium"
