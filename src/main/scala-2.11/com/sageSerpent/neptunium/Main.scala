@@ -4,10 +4,6 @@
 
 package com.sageSerpent.neptunium
 
-import java.io.FileWriter
-
-import resource.managed
-
 import scalaz.concurrent.Task
 import scalaz.stream._
 import scalaz.{-\/, \/-}
@@ -36,10 +32,10 @@ object Main extends App {
 
   val pathsOfFiles = io.stdInLines takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
 
-  for (acknowledgementFileWriter <- managed(new FileWriter(acknowledgementFilePath))) {
-    var readyAcknowledgementToSemanticMerge = "READY"
-    acknowledgementFileWriter.write(readyAcknowledgementToSemanticMerge)
-  }
+  val acknowledgementOfBeingInitialisedBackToSemanticMerge = "READY"
+  
+  scala.reflect.io.File(acknowledgementFilePath).writeAll(acknowledgementOfBeingInitialisedBackToSemanticMerge)
+  
   val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2).takeWhile(2 == _.length)
   val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
     FileProcessor.discoverStructure(pathOfFileToBeProcessed, pathOfResultFile)

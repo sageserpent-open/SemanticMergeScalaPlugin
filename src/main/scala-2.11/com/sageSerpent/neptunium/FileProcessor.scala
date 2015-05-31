@@ -25,8 +25,10 @@ object FileProcessor {
       def yaml = {
         def yamlForLineSpan(position: Position) = {
           def lineAndColumnFor(offset: Int) = {
-            val line = 1 + position.source.offsetToLine(offset) // Semantic Merge uses one-relative line numbers...
-            val column = position.source.lineToOffset(line)     // ... but zero-relative column numbers.
+            val zeroRelativeLine = position.source.offsetToLine(offset)
+            val line = 1 + zeroRelativeLine // Semantic Merge uses one-relative line numbers...
+            val offsetOfStartOfLine = position.source.lineToOffset(zeroRelativeLine)
+            val column = offset - offsetOfStartOfLine // ... but zero-relative column numbers.
             line -> column
           }
           val (startLine, startColumn) = lineAndColumnFor(position.start)
@@ -34,7 +36,9 @@ object FileProcessor {
           s"{{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}}"
         }
         def yamlForCharacterSpan(position: Position) =
-          s"[${position.start}, ${position.end}]"
+          s"[${position.start}, ${position.end - 1}]" // Semantic Merge uses []-intervals (closed - closed), so we have
+                                                      // to decrement the end position which is really one past the end;
+                                                      // 'Position' models a [)-interval (closed, open).
         val yamlForEmptyCharacterSpan = "[0, -1]"
         def indent(indentationLevel: Int)(line: String) =
           " " * indentationLevel + line
