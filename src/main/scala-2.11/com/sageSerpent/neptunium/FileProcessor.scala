@@ -36,9 +36,9 @@ object FileProcessor {
           s"{{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}}"
         }
         def yamlForCharacterSpan(position: Position) =
-          s"[${position.start}, ${position.end - 1}]" // Semantic Merge uses []-intervals (closed - closed), so we have
-                                                      // to decrement the end position which is really one past the end;
-                                                      // 'Position' models a [)-interval (closed, open).
+          s"[${position.start}, ${position.end - 1}]" // Semantic Merge uses []-intervals (closed - closed) for character
+                                                      // spans, so we have to decrement the end position which is really
+                                                      // one past the end; 'Position' models a [)-interval (closed, open).
         val yamlForEmptyCharacterSpan = "[0, -1]"
         def indent(indentationLevel: Int)(line: String) =
           " " * indentationLevel + line
@@ -50,10 +50,11 @@ object FileProcessor {
 
         def yamlForSection(section: SpanTree): Iterable[String] = {
           def yamlForContainer(containerPosition: Position, children: Iterable[SpanTree]): Iterable[String] = {
+            require(!children.isEmpty)
             val typeName = "Section - TODO"
             val name = "Don't know"
-            val headerSpan = containerPosition
-            val footerSpan = containerPosition
+            val headerSpan = containerPosition.withEnd(children.head.tree.pos.start)
+            val footerSpan = containerPosition.withStart(children.last.tree.pos.start)
             Iterable(s"- type : $typeName",
               s"  name : $name",
               s"  locationSpan : ${yamlForLineSpan(containerPosition)}",
