@@ -1,7 +1,6 @@
 package com.sageSerpent.neptunium
 
-import java.nio.file.Paths
-
+import scala.collection.JavaConverters._
 import scala.reflect.internal.util.{BatchSourceFile, Position}
 import scala.reflect.io.PlainFile
 import scala.tools.nsc.Settings
@@ -10,47 +9,107 @@ import scala.tools.nsc.reporters.ConsoleReporter
 
 object FileProcessor {
   def discoverStructure(pathOfInputFile: String, pathOfOutputFileForYamlResult: String) = {
-    System.out.println("Starting....")
-
-    System.out.println(s"pathOfInputFile: $pathOfInputFile")
-    System.out.println(s"pathOfOutputFileForYamlResult: $pathOfOutputFileForYamlResult")
-
     val settings = new Settings()
 
     val classPath = System.getProperty("java.class.path");
 
-    settings.bootclasspath.append(classPath)
-
-    val currentWorkingDirectory = Paths.get(".").toAbsolutePath()
+    settings.bootclasspath.append(classPath) // Voodoo required by the Scala presentation compiler.
 
     val sourceFile = new PlainFile(pathOfInputFile)
     val presentationCompiler: Global = new Global(settings, new ConsoleReporter(settings))
     val tree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
 
-    val positions: List[presentationCompiler.Position] = tree.collect(PartialFunction(_.pos))
+    case class SpanTree(tree: presentationCompiler.Tree, children: Seq[SpanTree]) {
+      def content = tree.pos.source.content.slice(tree.pos.start, tree.pos.end)
 
-    val snippets = tree.collect(PartialFunction(_.toString()))
+      def yaml = {
+        def yamlForLineSpan(position: Position) = {
+          def lineAndColumnFor(offset: Int) = {
+            val line = position.source.offsetToLine(offset)
+            val column = position.source.lineToOffset(line)
+            line -> column
+          }
+          val (startLine, startColumn) = lineAndColumnFor(position.start)
+          val (endLine, endColumn) = lineAndColumnFor(position.end)
+          s"{{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}}"
+        }
+        def yamlForCharacterSpan(position: Position) =
+          s"[${position.start}, ${position.end}]"
+        val yamlForEmptyCharacterSpan = "[0, -1]"
+        def indent(indentationLevel: Int)(line: String) =
+          " " * indentationLevel + line
+        val indentPieces = (_: Iterable[String]).map(indent(2))
+        def joinPiecesOnSeparateLines(pieces: Iterable[String]) =
+          String.join("\n", pieces.asJava)
+        def yamlForSubpieces(yamlForSubpiece: SpanTree => Iterable[String], pieces: Iterable[SpanTree]): Iterable[String] =
+          pieces.flatMap(yamlForSubpiece andThen indentPieces)
 
+        def yamlForSection(section: SpanTree): Iterable[String] = {
+          def yamlForContainer(containerPosition: Position, children: Iterable[SpanTree]): Iterable[String] = {
+            val typeName = "Section - TODO"
+            val name = "Don't know"
+            val headerSpan = containerPosition
+            val footerSpan = containerPosition
+            Iterable(s"- type : $typeName",
+              s"  name : $name",
+              s"  locationSpan : ${yamlForLineSpan(containerPosition)}",
+              s"  headerSpan : ${yamlForCharacterSpan(headerSpan)}",
+              s"  footerSpan : ${yamlForCharacterSpan(footerSpan)}") ++ (
+              if (!children.isEmpty)
+                Iterable("  children :") ++ yamlForSubpieces(yamlForSection _, children)
+              else
+                Iterable.empty[String])
+          }
 
-    for ((position, snippet) <- positions zip snippets) {
-      System.out.println(position)
-      System.out.println(snippet)
-      System.out.println("--------------------")
-    }
+          def yamlForTerminal(terminalPosition: Position): Iterable[String] = {
+            val typeName = "Terminal - TODO"
+            val name = "Don't know"
+            Iterable(s"- type : $typeName",
+              s"  name : $name",
+              s"  locationSpan : ${yamlForLineSpan(terminalPosition)}",
+              s"  span : ${yamlForCharacterSpan(terminalPosition)}")
+          }
 
-    case class SpanTree(position: Position, children: Seq[SpanTree]) {
+          section match {
+            case SpanTree(tree, Seq()) => yamlForTerminal(tree.pos)
+            case SpanTree(tree, children) => yamlForContainer(tree.pos, children)
+          }
+        }
+
+        val pieces: Iterable[String] = {
+          val parsingErrorsDetected = false
+          Iterable("---",
+            "type : file",
+            s"name : ${pathOfInputFile}",
+            s"locationSpan : ${yamlForLineSpan(tree.pos)}",
+            s"footerSpan : ${yamlForEmptyCharacterSpan}",
+            s"parsingErrorsDetected : ${parsingErrorsDetected}") ++
+            (if (!children.isEmpty)
+              Iterable("  children :") ++ yamlForSubpieces(yamlForSection _, children)
+            else
+              Iterable.empty[String]) ++
+            (if (parsingErrorsDetected)
+              Seq("parsingErrors :")
+            else
+              Seq.empty)
+        }
+
+        joinPiecesOnSeparateLines(pieces)
+      }
     }
 
     class SpanTreeBuilder extends presentationCompiler.Traverser {
       var spanTreeStack = scala.collection.immutable.Stack[SpanTree]()
 
       override def traverse(tree: presentationCompiler.Tree) = {
-        val preservedSpanTreeStack = spanTreeStack
-        try {
-          spanTreeStack = scala.collection.immutable.Stack.empty
-          super.traverse(tree)
-        } finally {
-          spanTreeStack = preservedSpanTreeStack.push(SpanTree(tree.pos, spanTreeStack))
+        if (tree.pos.isRange) {
+          val preservedSpanTreeStack = spanTreeStack
+          try {
+            spanTreeStack = scala.collection.immutable.Stack.empty
+            super.traverse(tree)
+          } finally {
+            spanTreeStack = preservedSpanTreeStack.push(SpanTree(tree, spanTreeStack))
+          }
         }
       }
     }
@@ -59,8 +118,10 @@ object FileProcessor {
 
     spanTreeBuilder.traverse(tree)
 
-    System.out.println(spanTreeBuilder.spanTreeStack.head)
+    val spanTree = spanTreeBuilder.spanTreeStack.head
 
-    System.out.println("Made it here.")
+    val yaml = spanTree.yaml
+
+    scala.reflect.io.File(pathOfOutputFileForYamlResult).writeAll(yaml)
   }
 }
