@@ -25,8 +25,8 @@ object FileProcessor {
       def yaml = {
         def yamlForLineSpan(position: Position) = {
           def lineAndColumnFor(offset: Int) = {
-            val line = position.source.offsetToLine(offset)
-            val column = position.source.lineToOffset(line)
+            val line = 1 + position.source.offsetToLine(offset) // Semantic Merge uses one-relative line numbers...
+            val column = position.source.lineToOffset(line)     // ... but zero-relative column numbers.
             line -> column
           }
           val (startLine, startColumn) = lineAndColumnFor(position.start)
