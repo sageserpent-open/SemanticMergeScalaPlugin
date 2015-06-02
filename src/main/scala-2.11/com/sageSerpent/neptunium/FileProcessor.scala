@@ -33,7 +33,7 @@ object FileProcessor {
           }
           val (startLine, startColumn) = lineAndColumnFor(position.start)
           val (endLine, endColumn) = lineAndColumnFor(position.end)
-          s"{{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}}"
+          s"{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}"
         }
         def yamlForCharacterSpan(position: Position) =
           s"[${position.start}, ${position.end - 1}]" // Semantic Merge uses []-intervals (closed - closed) for character
@@ -90,7 +90,7 @@ object FileProcessor {
             s"footerSpan : ${yamlForEmptyCharacterSpan}",
             s"parsingErrorsDetected : ${parsingErrorsDetected}") ++
             (if (!children.isEmpty)
-              Iterable("  children :") ++ yamlForSubpieces(yamlForSection _, children)
+              Iterable("children :") ++ yamlForSubpieces(yamlForSection _, children)
             else
               Iterable.empty[String]) ++
             (if (parsingErrorsDetected)

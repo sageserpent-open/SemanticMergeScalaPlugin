@@ -9,7 +9,6 @@ import scalaz.stream._
 import scalaz.{-\/, \/-}
 
 object Main extends App {
-
   val numberOfArguments = args.length
 
   val numberOfArgumentsExpected = 2
@@ -28,13 +27,13 @@ object Main extends App {
 
   val acknowledgementFilePath = args(1)
 
+  val acknowledgementOfBeingInitialisedBackToSemanticMerge = "READY"
+
+  scala.reflect.io.File(acknowledgementFilePath).writeAll(acknowledgementOfBeingInitialisedBackToSemanticMerge)
+
   val endOfInputSentinelFromSemanticMerge = "end"
 
   val pathsOfFiles = io.stdInLines takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
-
-  val acknowledgementOfBeingInitialisedBackToSemanticMerge = "READY"
-  
-  scala.reflect.io.File(acknowledgementFilePath).writeAll(acknowledgementOfBeingInitialisedBackToSemanticMerge)
   
   val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2).takeWhile(2 == _.length)
   val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
