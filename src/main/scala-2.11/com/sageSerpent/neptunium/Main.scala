@@ -39,8 +39,8 @@ object Main extends App {
   val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
     FileProcessor.discoverStructure(pathOfFileToBeProcessed, pathOfResultFile)
   }.attempt
-  } |> process1.lift { case \/-(_) => "OK"
-  case -\/(_) => "KO"
+  } |> process1.lift { case \/-(true) => "OK"
+  case _ => "KO"
   }
   val endToEndProcessing = statuses to io.stdOutLines
 
