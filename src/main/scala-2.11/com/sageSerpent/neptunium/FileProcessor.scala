@@ -127,16 +127,16 @@ object FileProcessor {
     }
 
     class SpanTreeBuilder extends presentationCompiler.Traverser {
-      var spanTreeStack = scala.collection.immutable.Stack[SpanTree]()
+      var spanTreeStack = scala.collection.immutable.Queue[SpanTree]()
 
       override def traverse(tree: presentationCompiler.Tree) = {
         if (tree.pos.isRange) {
           val preservedSpanTreeStack = spanTreeStack
           try {
-            spanTreeStack = scala.collection.immutable.Stack.empty
+            spanTreeStack = scala.collection.immutable.Queue.empty
             super.traverse(tree)
           } finally {
-            spanTreeStack = preservedSpanTreeStack.push(SpanTree(tree, spanTreeStack))
+            spanTreeStack = preservedSpanTreeStack.enqueue(SpanTree(tree, spanTreeStack))
           }
         }
       }
