@@ -23,9 +23,8 @@ object FileProcessor {
 
       override def display(pos: Position, msg: String, severity: Severity): Unit = {
         severity match {
-          case ERROR => {
+          case ERROR =>
             capturedMessages += pos -> msg
-          }
           case _ =>
         }
       }
@@ -102,28 +101,26 @@ object FileProcessor {
           }
         }
 
-        val yamlForError: ((Position, String)) => Iterable[String] = {case ((position: Position), (message: String)) => {
+        val yamlForError: ((Position, String)) => Iterable[String] = {case ((position: Position), (message: String)) =>
           val (startLine, startColumn) = lineAndColumnFor(position, _.start)
           Iterable(s"- location: [$startLine,$startColumn]",
           s"""  message: "$message"""")
-        }}
-
-        val pieces: Iterable[String] = {
-          Iterable("---",
-            "type : file",
-            s"name : ${pathOfInputFile}",
-            s"locationSpan : ${yamlForLineSpan(tree.pos)}",
-            s"footerSpan : ${yamlForEmptyCharacterSpan}",
-            s"parsingErrorsDetected : ${parsingErrorsDetected}") ++
-            (if (children.nonEmpty)
-              Iterable("children :") ++ yamlForSubpieces(yamlForSection, children)
-            else
-              Iterable.empty[String]) ++
-            (if (parsingErrorsDetected)
-              Iterable("parsingErrors :") ++ (reporter.capturedMessages flatMap (yamlForError andThen indentPieces))
-            else
-              Iterable.empty)
         }
+
+        val pieces: Iterable[String] = Iterable("---",
+          "type : file",
+          s"name : $pathOfInputFile",
+          s"locationSpan : ${yamlForLineSpan(tree.pos)}",
+          s"footerSpan : $yamlForEmptyCharacterSpan",
+          s"parsingErrorsDetected : $parsingErrorsDetected") ++
+          (if (children.nonEmpty)
+            Iterable("children :") ++ yamlForSubpieces(yamlForSection, children)
+          else
+            Iterable.empty[String]) ++
+          (if (parsingErrorsDetected)
+            Iterable("parsingErrors :") ++ (reporter.capturedMessages flatMap (yamlForError andThen indentPieces))
+          else
+            Iterable.empty)
 
         joinPiecesOnSeparateLines(pieces)
       }
