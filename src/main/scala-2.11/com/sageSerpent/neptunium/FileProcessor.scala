@@ -9,7 +9,7 @@ import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.AbstractReporter
 
 object FileProcessor {
-  def discoverStructure(pathOfInputFile: String, pathOfOutputFileForYamlResult: String): Boolean = {
+  def discoverStructure(pathOfInputFile: String, pathOfOutputFileForYamlResult: String) {
     val sourceFile = new PlainFile(pathOfInputFile)
 
     val settings = new Settings()
@@ -151,7 +151,5 @@ object FileProcessor {
     val yaml = spanTree.yaml
 
     scala.reflect.io.File(pathOfOutputFileForYamlResult).writeAll(yaml)
-
-    !parsingErrorsDetected
   }
 }
