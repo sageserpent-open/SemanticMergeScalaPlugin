@@ -105,7 +105,7 @@ object FileProcessor {
         val yamlForError: ((Position, String)) => Iterable[String] = {case ((position: Position), (message: String)) => {
           val (startLine, startColumn) = lineAndColumnFor(position, _.start)
           Iterable(s"- location: [$startLine,$startColumn]",
-          s"""  message: "$message""""")
+          s"""  message: "$message"""")
         }}
 
         val pieces: Iterable[String] = {
