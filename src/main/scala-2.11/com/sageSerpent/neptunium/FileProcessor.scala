@@ -45,7 +45,7 @@ object FileProcessor {
 
     val onePastEndOfFileCharacterIndex = overallTree.pos.source.length
 
-    case class PositionTree(treePosition: Position, children: Iterable[PositionTree]) {
+    case class PositionTree(position: Position, children: Iterable[PositionTree]) {
       def transform(transformer: PositionTree => PositionTree): PositionTree = {
         val transformedChildren = children.map(_.transform(transformer))
         transformer(this.copy(children = transformedChildren))
@@ -74,20 +74,31 @@ object FileProcessor {
 
     val positionTree = positionTreeBuilder.positionTreeStack.head
 
-    def adjustSpansToCoverTheSourceContiguously(siblingSpanTrees: Iterable[PositionTree]) = {
-      if (siblingSpanTrees.nonEmpty) {
-        val pairsOfSpanTreeAndOnePastItsEndAfterAdjustment = siblingSpanTrees.sliding(2).filter(2 == _.size).map { case Seq(predecessor, successor) => predecessor -> successor.treePosition.pos.start }
-        val adjustedSpanTrees = pairsOfSpanTreeAndOnePastItsEndAfterAdjustment.map { case (positionTree, onePastTheEndAfterAdjustment) => positionTree.copy(treePosition = positionTree.treePosition.withEnd(onePastTheEndAfterAdjustment))
+    val adjustChildPositionsToCoverTheSourceContiguously: PositionTree => PositionTree = {
+      case positionTree@PositionTree(position, Seq()) => positionTree
+      case PositionTree(position, children) => {
+        {
+          val pairsOfPositionTreeAndOnePastItsEndAfterAdjustment = children.sliding(2).filter(2 == _.size).map { case Seq(predecessor, successor) => predecessor -> successor.position.pos.start }
+          val adjustedPositionTrees = pairsOfPositionTreeAndOnePastItsEndAfterAdjustment.map { case (positionTree, onePastTheEndAfterAdjustment) => positionTree.copy(position = positionTree.position.withEnd(onePastTheEndAfterAdjustment)) }
+          val adjustedChildren = adjustedPositionTrees.toList :+ children.last
+          PositionTree(position, adjustedChildren)
         }
-        adjustedSpanTrees.toList :+ siblingSpanTrees.last
-      } else {
-        siblingSpanTrees
       }
     }
 
-    val positionTreeWithInternalAdjustments = positionTree.transform { case PositionTree(treePosition, children) => PositionTree(treePosition, adjustSpansToCoverTheSourceContiguously(children)) }
+    val adjustPositionToBeConsistentWithItsChildren: PositionTree => PositionTree = {
+      case positionTree@PositionTree(position, Seq()) => positionTree
+      case PositionTree(position, children) => {
+        val startOfFirstChild = children.head.position.pos.start
+        val onePastEndOfLastChild = children.last.position.pos.end
+        val positionConsistentWithChildren = position.withStart(Ordering[Int].min(position.start, startOfFirstChild)).withEnd(Ordering[Int].max(position.end, onePastEndOfLastChild))
+        PositionTree(positionConsistentWithChildren, children)
+      }
+    }
 
-    def yamlFrom: PositionTree => String = {
+    val positionTreeWithInternalAdjustments = positionTree.transform(adjustChildPositionsToCoverTheSourceContiguously andThen adjustPositionToBeConsistentWithItsChildren)
+
+    val yamlFrom: PositionTree => String = {
       case PositionTree(rootPosition, childrenOfRoot) =>
         def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
           val offset = offsetFrom(position)
@@ -124,18 +135,17 @@ object FileProcessor {
           pieces.flatMap(yamlForSubpiece andThen indentPieces)
 
         def yamlForSection(section: PositionTree): Iterable[String] = {
-          def yamlForContainer(containerPosition: Position, children: Iterable[PositionTree]): Iterable[String] = {
+          def yamlForContainer(position: Position, children: Iterable[PositionTree]): Iterable[String] = {
             require(children.nonEmpty)
             val typeName = "Section - TODO"
             val name = "TODO"
-            val startOfFirstChild = children.head.treePosition.pos.start
-            val onePastEndOfLastChild = children.last.treePosition.pos.end
-            val containerPositionConsistentWithChildren = containerPosition.withStart(Ordering[Int].min(containerPosition.start, startOfFirstChild)).withEnd(Ordering[Int].max(containerPosition.end, onePastEndOfLastChild))
-            val headerSpan = containerPositionConsistentWithChildren.withEnd(startOfFirstChild)
-            val footerSpan = containerPositionConsistentWithChildren.withStart(onePastEndOfLastChild)
+            val startOfFirstChild = children.head.position.pos.start
+            val onePastEndOfLastChild = children.last.position.pos.end
+            val headerSpan = position.withEnd(startOfFirstChild)
+            val footerSpan = position.withStart(onePastEndOfLastChild)
             Iterable(s"- type : $typeName",
               s"  name : $name",
-              s"  locationSpan : ${yamlForLineSpan(containerPositionConsistentWithChildren)}",
+              s"  locationSpan : ${yamlForLineSpan(position)}",
               s"  headerSpan : ${yamlForCharacterSpan(headerSpan)}",
               s"  footerSpan : ${yamlForCharacterSpan(footerSpan)}") ++ (
               if (children.nonEmpty)
@@ -154,8 +164,8 @@ object FileProcessor {
           }
 
           section match {
-            case PositionTree(treePosition, Seq()) => yamlForTerminal(treePosition)
-            case PositionTree(treePosition, children) => yamlForContainer(treePosition, children)
+            case PositionTree(position, Seq()) => yamlForTerminal(position)
+            case PositionTree(position, children) => yamlForContainer(position, children)
           }
         }
 
@@ -170,7 +180,7 @@ object FileProcessor {
           "type : file",
           s"name : $pathOfInputFile",
           s"locationSpan : ${yamlForLineSpan(rootPosition.pos)}",
-          //s"footerSpan : ${yamlForCharacterSpan(tree.pos.withStart(startOfFileCharacterIndex).withEnd(onePastEndOfFileCharacterIndex))}",
+          //s"footerSpan : ${yamlForCharacterSpan(rootPosition.pos.withStart(startOfFileCharacterIndex).withEnd(onePastEndOfFileCharacterIndex))}",
           s"footerSpan : $yamlForEmptyCharacterSpan",
           s"parsingErrorsDetected : $parsingErrorsDetected") ++
           (if (childrenOfRoot.nonEmpty)
