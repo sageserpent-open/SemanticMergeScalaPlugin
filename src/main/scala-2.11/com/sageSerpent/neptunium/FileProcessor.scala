@@ -41,9 +41,6 @@ object FileProcessor {
     val overallTree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
     val parsingErrorsDetected = reporter.hasErrors
 
-    val startOfFileCharacterIndex = 0
-
-    val onePastEndOfFileCharacterIndex = overallTree.pos.source.length
 
     case class PositionTree(position: Position, children: Iterable[PositionTree]) {
       def transform(transformer: PositionTree => PositionTree): PositionTree = {
@@ -98,15 +95,58 @@ object FileProcessor {
 
     val positionTreeWithInternalAdjustments = positionTree.transform(adjustChildPositionsToCoverTheSourceContiguously andThen adjustPositionToBeConsistentWithItsChildren)
 
+
+    val source = overallTree.pos.source
+
+    val startOfSource = 0
+    val onePastEndOfSource = source.length
+
+    val fragmentToPadOutFromStartOfSource = positionTreeWithInternalAdjustments match {
+      case PositionTree(position, children) => {
+        val startOfPositionTree = children.head.position.start
+        if (startOfPositionTree > startOfSource)
+          Some(PositionTree(Position.range(source, startOfSource, startOfSource, startOfPositionTree), Iterable.empty))
+        else
+          None
+      }
+    }
+
+    val fragmentToPadOutToEndOfSource = positionTreeWithInternalAdjustments match {
+      case PositionTree(position, children) => {
+        val onePastEndOfPositionTree = children.last.position.end
+        if (onePastEndOfPositionTree < onePastEndOfSource)
+          Some(PositionTree(Position.range(source, onePastEndOfPositionTree, onePastEndOfPositionTree, onePastEndOfSource), Iterable.empty))
+        else
+          None
+      }
+    }
+
+    val positionTreeCoveringEntireSource = fragmentToPadOutFromStartOfSource -> fragmentToPadOutToEndOfSource match {
+      case (Some(fragmentToPadOutFromStartOfSource), Some(fragmentToPadOutToEndOfSource)) =>
+        positionTreeWithInternalAdjustments.copy(children = fragmentToPadOutFromStartOfSource +: positionTreeWithInternalAdjustments.children.toList :+ fragmentToPadOutToEndOfSource)
+      case (Some(fragmentToPadOutFromStartOfSource), None) =>
+        positionTreeWithInternalAdjustments.copy(children = fragmentToPadOutFromStartOfSource +: positionTreeWithInternalAdjustments.children.toList)
+      case (None, Some(fragmentToPadOutToEndOfSource)) =>
+        positionTreeWithInternalAdjustments.copy(children = positionTreeWithInternalAdjustments.children.toList :+ fragmentToPadOutToEndOfSource)
+      case (None, None) => positionTreeWithInternalAdjustments
+    }
+
     val yamlFrom: PositionTree => String = {
       case PositionTree(rootPosition, childrenOfRoot) =>
         def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
           val offset = offsetFrom(position)
-          val zeroRelativeLine = position.source.offsetToLine(offset)
-          val line = 1 + zeroRelativeLine // Semantic Merge uses one-relative line numbers...
-          val offsetOfStartOfLine = position.source.lineToOffset(zeroRelativeLine)
-          val column = offset - offsetOfStartOfLine // ... but zero-relative column numbers.
-          line -> column
+          if (offset < position.source.length) {
+            val zeroRelativeLine = position.source.offsetToLine(offset)
+            val line = 1 + zeroRelativeLine // Semantic Merge uses one-relative line numbers...
+            val offsetOfStartOfLine = position.source.lineToOffset(zeroRelativeLine)
+            val column = offset - offsetOfStartOfLine // ... but zero-relative column numbers.
+            line -> column
+          } else {
+            val zeroRelativeLine = 1 + position.source.offsetToLine(position.source.length - 1)
+            val line = 1 + zeroRelativeLine // Semantic Merge uses one-relative line numbers...
+            val column = 0
+            line -> column // ... but zero-relative column numbers.
+          }
         }
         def yamlForLineSpan(position: Position) = {
           // Semantic Merge uses [)-intervals (closed - open) for line spans
@@ -195,7 +235,7 @@ object FileProcessor {
         joinPiecesOnSeparateLines(pieces)
     }
 
-    val yaml = yamlFrom(positionTreeWithInternalAdjustments)
+    val yaml = yamlFrom(positionTreeCoveringEntireSource)
 
     scala.reflect.io.File(pathOfOutputFileForYamlResult).writeAll(yaml)
   }
