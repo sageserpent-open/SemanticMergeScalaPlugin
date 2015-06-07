@@ -38,8 +38,13 @@ object FileProcessor {
     val tree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
     val parsingErrorsDetected = reporter.hasErrors
 
-    case class SpanTree(tree: presentationCompiler.Tree, children: Seq[SpanTree]) {
+    case class SpanTree(tree: presentationCompiler.Tree, children: Iterable[SpanTree]) {
       def content = tree.pos.source.content.slice(tree.pos.start, tree.pos.end)
+
+      def transform(transformer: SpanTree => SpanTree) = {
+        val transformedChildren = children.map(transformer)
+        transformer(this.copy(children = transformedChildren))
+      }
 
       def yaml = {
         def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
@@ -51,14 +56,22 @@ object FileProcessor {
           line -> column
         }
         def yamlForLineSpan(position: Position) = {
+          // Semantic Merge uses [)-intervals (closed - open) for line spans
+          // (but see below about character spans). The examples from Codice
+          // show that if the line span ends just after a linebreak, then it
+          // either points one past the end on the same line, or points to the
+          // zeroeth character position on the next line, this depends on whether
+          // the construct is contained within one line or spans several lines.
+
           val (startLine, startColumn) = lineAndColumnFor(position, _.start)
           val (endLine, endColumn) = lineAndColumnFor(position, _.end)
           s"{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}"
         }
         def yamlForCharacterSpan(position: Position) =
-          s"[${position.start}, ${position.end - 1}]" // Semantic Merge uses []-intervals (closed - closed) for character
+        // Semantic Merge uses []-intervals (closed - closed) for character
         // spans, so we have to decrement the end position which is really
         // one past the end; 'Position' models a [)-interval (closed, open).
+          s"[${position.start}, ${position.end - 1}]"
         val yamlForEmptyCharacterSpan = "[0, -1]"
         def indent(indentationLevel: Int)(line: String) =
           " " * indentationLevel + line
@@ -69,12 +82,13 @@ object FileProcessor {
           pieces.flatMap(yamlForSubpiece andThen indentPieces)
 
         def yamlForSection(section: SpanTree): Iterable[String] = {
-          def yamlForContainer(containerPosition: Position, children: Iterable[SpanTree]): Iterable[String] = {
+          def yamlForContainer(container: presentationCompiler.Tree, children: Iterable[SpanTree]): Iterable[String] = {
             require(children.nonEmpty)
             val typeName = "Section - TODO"
-            val name = "Don't know"
+            val name = "TODO"
+            val containerPosition = container.pos
             val headerSpan = containerPosition.withEnd(children.head.tree.pos.start)
-            val footerSpan = containerPosition.withStart(children.last.tree.pos.start)
+            val footerSpan = containerPosition.withStart(children.last.tree.pos.end)
             Iterable(s"- type : $typeName",
               s"  name : $name",
               s"  locationSpan : ${yamlForLineSpan(containerPosition)}",
@@ -86,9 +100,10 @@ object FileProcessor {
                 Iterable.empty[String])
           }
 
-          def yamlForTerminal(terminalPosition: Position): Iterable[String] = {
+          def yamlForTerminal(terminal: presentationCompiler.Tree): Iterable[String] = {
             val typeName = "Terminal - TODO"
-            val name = "Don't know"
+            val name = "TODO"
+            val terminalPosition = terminal.pos
             Iterable(s"- type : $typeName",
               s"  name : $name",
               s"  locationSpan : ${yamlForLineSpan(terminalPosition)}",
@@ -96,15 +111,16 @@ object FileProcessor {
           }
 
           section match {
-            case SpanTree(tree, Seq()) => yamlForTerminal(tree.pos)
-            case SpanTree(tree, children) => yamlForContainer(tree.pos, children)
+            case SpanTree(tree, Seq()) => yamlForTerminal(tree)
+            case SpanTree(tree, children) => yamlForContainer(tree, children)
           }
         }
 
-        val yamlForError: ((Position, String)) => Iterable[String] = {case ((position: Position), (message: String)) =>
-          val (startLine, startColumn) = lineAndColumnFor(position, _.start)
-          Iterable(s"- location: [$startLine,$startColumn]",
-          s"""  message: "$message"""")
+        val yamlForError: ((Position, String)) => Iterable[String] = {
+          case ((position: Position), (message: String)) =>
+            val (startLine, startColumn) = lineAndColumnFor(position, _.start)
+            Iterable(s"- location: [$startLine,$startColumn]",
+              s"""  message: "$message"""")
         }
 
         val pieces: Iterable[String] = Iterable("---",
@@ -148,7 +164,24 @@ object FileProcessor {
 
     val spanTree = spanTreeBuilder.spanTreeStack.head
 
-    val yaml = spanTree.yaml
+    def adjustSpansToCoverTheSourceContiguously(siblingSpanTrees: Iterable[SpanTree]) = {
+      val pairsOfSpanTreeAndOnePastItsEndAfterAdjustment = siblingSpanTrees.sliding(2).filter(2 == _.size).map { case Seq(predecessor, successor) => predecessor -> successor.tree.pos.start }
+      val adjustedSpanTrees = pairsOfSpanTreeAndOnePastItsEndAfterAdjustment.map { case (spanTree, onePastTheEndAfterAdjustment) => spanTree.copy(tree = {
+        val adjustedTree = spanTree.tree.shallowDuplicate
+        adjustedTree.pos = adjustedTree.pos.withEnd(onePastTheEndAfterAdjustment)
+        adjustedTree
+      })
+      }
+      adjustedSpanTrees.toList :+ siblingSpanTrees.last
+    }
+
+    val spanTreeWithInternalAdjustments = spanTree.transform {case SpanTree(tree, children) => SpanTree(tree, adjustSpansToCoverTheSourceContiguously(children))}
+
+    val startOfFileCharacterIndex = 0
+
+    val onePastEndOfFileCharacterIndex = tree.pos.source.length
+
+    val yaml = spanTreeWithInternalAdjustments.yaml
 
     scala.reflect.io.File(pathOfOutputFileForYamlResult).writeAll(yaml)
   }
