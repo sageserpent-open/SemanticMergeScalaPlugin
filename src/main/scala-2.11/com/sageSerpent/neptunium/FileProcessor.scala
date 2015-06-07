@@ -38,6 +38,11 @@ object FileProcessor {
     val tree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
     val parsingErrorsDetected = reporter.hasErrors
 
+
+    val startOfFileCharacterIndex = 0
+
+    val onePastEndOfFileCharacterIndex = tree.pos.source.length
+
     case class SpanTree(tree: presentationCompiler.Tree, children: Iterable[SpanTree]) {
       def content = tree.pos.source.content.slice(tree.pos.start, tree.pos.end)
 
@@ -86,9 +91,11 @@ object FileProcessor {
             require(children.nonEmpty)
             val typeName = "Section - TODO"
             val name = "TODO"
-            val containerPosition = container.pos
-            val headerSpan = containerPosition.withEnd(children.head.tree.pos.start)
-            val footerSpan = containerPosition.withStart(children.last.tree.pos.end)
+            val startOfFirstChild = children.head.tree.pos.start
+            val onePastEndOfLastChild = children.last.tree.pos.end
+            val containerPosition = container.pos.withStart(Ordering[Int].min(container.pos.start, startOfFirstChild)).withEnd(Ordering[Int].max(container.pos.end, onePastEndOfLastChild))
+            val headerSpan = containerPosition.withEnd(startOfFirstChild)
+            val footerSpan = containerPosition.withStart(onePastEndOfLastChild)
             Iterable(s"- type : $typeName",
               s"  name : $name",
               s"  locationSpan : ${yamlForLineSpan(containerPosition)}",
@@ -127,6 +134,7 @@ object FileProcessor {
           "type : file",
           s"name : $pathOfInputFile",
           s"locationSpan : ${yamlForLineSpan(tree.pos)}",
+          //s"footerSpan : ${yamlForCharacterSpan(tree.pos.withStart(startOfFileCharacterIndex).withEnd(onePastEndOfFileCharacterIndex))}",
           s"footerSpan : $yamlForEmptyCharacterSpan",
           s"parsingErrorsDetected : $parsingErrorsDetected") ++
           (if (children.nonEmpty)
@@ -167,7 +175,7 @@ object FileProcessor {
     def adjustSpansToCoverTheSourceContiguously(siblingSpanTrees: Iterable[SpanTree]) = {
       val pairsOfSpanTreeAndOnePastItsEndAfterAdjustment = siblingSpanTrees.sliding(2).filter(2 == _.size).map { case Seq(predecessor, successor) => predecessor -> successor.tree.pos.start }
       val adjustedSpanTrees = pairsOfSpanTreeAndOnePastItsEndAfterAdjustment.map { case (spanTree, onePastTheEndAfterAdjustment) => spanTree.copy(tree = {
-        val adjustedTree = spanTree.tree.shallowDuplicate
+        val adjustedTree = spanTree.tree.duplicate
         adjustedTree.pos = adjustedTree.pos.withEnd(onePastTheEndAfterAdjustment)
         adjustedTree
       })
@@ -176,10 +184,6 @@ object FileProcessor {
     }
 
     val spanTreeWithInternalAdjustments = spanTree.transform {case SpanTree(tree, children) => SpanTree(tree, adjustSpansToCoverTheSourceContiguously(children))}
-
-    val startOfFileCharacterIndex = 0
-
-    val onePastEndOfFileCharacterIndex = tree.pos.source.length
 
     val yaml = spanTreeWithInternalAdjustments.yaml
 
