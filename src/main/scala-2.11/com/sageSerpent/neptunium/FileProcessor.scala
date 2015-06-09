@@ -60,7 +60,8 @@ object FileProcessor {
             super.traverse(tree)
           } finally {
             val (typeName, name) = tree match {
-                /**********************************/
+              case presentationCompiler.Ident(name) =>
+                "Identifier" -> name.toString
               case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
                 "Val" -> name.toString
               case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
@@ -93,7 +94,6 @@ object FileProcessor {
                 "Return" -> ""
               case _ =>
                 "" -> ""
-                /**************************************************/
             }
             positionTreeStack = preservedSpanTreeStack.enqueue(PositionTree(tree.pos, positionTreeStack, typeName, name))
           }
@@ -179,15 +179,11 @@ object FileProcessor {
           }
         }
         def yamlForLineSpan(position: Position) = {
-          // Semantic Merge uses [)-intervals (closed - open) for line spans
-          // (but see below about character spans). The examples from Codice
-          // show that if the line span ends just after a linebreak, then it
-          // either points one past the end on the same line, or points to the
-          // zeroeth character position on the next line, this depends on whether
-          // the construct is contained within one line or spans several lines.
-
+          // Semantic Merge uses []-intervals (closed - closed) for line spans,
+          // so we have to decrement the end position which is really one past
+          // the end ; 'Position' models a [)-interval (closed, open).
           val (startLine, startColumn) = lineAndColumnFor(position, _.start)
-          val (endLine, endColumn) = lineAndColumnFor(position, _.end)
+          val (endLine, endColumn) = lineAndColumnFor(position, (_.end - 1))
           s"{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}"
         }
         def yamlForCharacterSpan(position: Position) =
