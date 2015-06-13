@@ -34,7 +34,7 @@ object Main extends App {
   val endOfInputSentinelFromSemanticMerge = "end"
 
   val pathsOfFiles = io.stdInLines takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
-  
+
   val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2).takeWhile(2 == _.length)
   val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
     FileProcessor.discoverStructure(pathOfFileToBeProcessed, pathOfResultFile)

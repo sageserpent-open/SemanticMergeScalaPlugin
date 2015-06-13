@@ -6,10 +6,8 @@ import scala.collection.mutable.ListBuffer
 import scala.reflect.internal.util.{BatchSourceFile, Position}
 import scala.reflect.io.PlainFile
 import scala.tools.nsc.Settings
-
 import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.AbstractReporter
-import scala.util.Sorting
 
 
 object FileProcessor {
@@ -46,17 +44,6 @@ object FileProcessor {
 
     case class PositionTree(position: Position, children: Seq[PositionTree], typeName: String, name: String) {
       require(position.isOpaqueRange)
-
-      val result = children.sliding(2).filter(2 == _.size).find { case Seq(predecessor, successor) => !predecessor.position.precedes(successor.position) }
-      result match {
-        case Some(Seq(predecessor, successor)) =>
-          System.err.println(sourceText.substring(predecessor.position.start, predecessor.position.end))
-          System.err.println("***************************************")
-          System.err.println(sourceText.substring(successor.position.start, successor.position.end))
-          System.err.println("So!")
-        case None =>
-      }
-
       require(children.sliding(2).filter(2 == _.size).forall { case Seq(predecessor, successor) => predecessor.position.precedes(successor.position) })
 
       def transform(transformer: PositionTree => PositionTree): PositionTree = {
@@ -115,16 +102,6 @@ object FileProcessor {
 
     val positionTree = positionTreeBuilder.positionTreeQueue.head
 
-    /*    def adjustToCoverTheSourceWithoutGaps(positionTree: PositionTree) ={
-          def adjustToCoverTheSourceWithoutGaps(positionTree: PositionTree, onePastTheEndAfterAdjustment: Int) = {
-            val (adjustedChildren, startOfChildren) = positionTree.children :\ one
-            positionTree -> 0
-          }
-
-          adjustToCoverTheSourceWithoutGaps(positionTree, positionTree.position.end)._1
-        }*/
-
-    // TODO -remove!!!!
     val adjustChildPositionsToCoverTheSourceContiguously: PositionTree => PositionTree = {
       case positionTree@PositionTree(position, Seq(), _, _) => positionTree
       case positionTree@PositionTree(position, children, _, _) =>
@@ -133,16 +110,6 @@ object FileProcessor {
         val adjustedChildren = adjustedPositionTrees.toList :+ children.last
         positionTree.copy(children = adjustedChildren)
     }
-
-    /*    // TODO - remove!!!!
-        val adjustPositionToBeConsistentWithItsChildren: PositionTree => PositionTree = {
-          case positionTree@PositionTree(position, Seq(), _, _) => positionTree
-          case positionTree@PositionTree(position, children, _, _) =>
-            val startOfFirstChild = children.head.position.pos.start
-            val onePastEndOfLastChild = children.last.position.pos.end
-            val positionConsistentWithChildren = position.withStart(Ordering[Int].min(position.start, startOfFirstChild)).withEnd(Ordering[Int].max(position.end, onePastEndOfLastChild))
-            positionTree.copy(position = positionConsistentWithChildren)
-        }*/
 
     val positionTreeWithInternalAdjustments = positionTree.transform(adjustChildPositionsToCoverTheSourceContiguously)
 
