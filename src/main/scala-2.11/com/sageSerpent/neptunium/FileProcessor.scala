@@ -9,6 +9,7 @@ import scala.tools.nsc.Settings
 
 import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.AbstractReporter
+import scala.util.Sorting
 
 
 object FileProcessor {
@@ -41,8 +42,23 @@ object FileProcessor {
     val overallTree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
     val parsingErrorsDetected = reporter.hasErrors
 
+    val sourceText = String.copyValueOf(overallTree.pos.source.content)
 
-    case class PositionTree(position: Position, children: Iterable[PositionTree], typeName: String, name: String) {
+    case class PositionTree(position: Position, children: Seq[PositionTree], typeName: String, name: String) {
+      require(position.isOpaqueRange)
+
+      val result = children.sliding(2).filter(2 == _.size).find { case Seq(predecessor, successor) => !predecessor.position.precedes(successor.position) }
+      result match {
+        case Some(Seq(predecessor, successor)) =>
+          System.err.println(sourceText.substring(predecessor.position.start, predecessor.position.end))
+          System.err.println("***************************************")
+          System.err.println(sourceText.substring(successor.position.start, successor.position.end))
+          System.err.println("So!")
+        case None =>
+      }
+
+      require(children.sliding(2).filter(2 == _.size).forall { case Seq(predecessor, successor) => predecessor.position.precedes(successor.position) })
+
       def transform(transformer: PositionTree => PositionTree): PositionTree = {
         val transformedChildren = children.map(_.transform(transformer))
         transformer(this.copy(children = transformedChildren))
@@ -50,53 +66,45 @@ object FileProcessor {
     }
 
     class PositionTreeBuilder extends presentationCompiler.Traverser {
-      var positionTreeStack = scala.collection.immutable.Queue[PositionTree]()
+      val emptyPositionTreeQueue = scala.collection.immutable.Queue.empty[PositionTree]
+      var positionTreeQueue = emptyPositionTreeQueue
 
       override def traverse(tree: presentationCompiler.Tree) = {
-        if (tree.pos.isRange) {
-          val preservedSpanTreeStack = positionTreeStack
-          try {
-            positionTreeStack = scala.collection.immutable.Queue.empty
-            super.traverse(tree)
-          } finally {
-            val (typeName, name) = tree match {
-              case presentationCompiler.Ident(name) =>
-                "Identifier" -> name.toString
-              case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
-                "Val" -> name.toString
-              case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
-                "Def" -> name.toString
-              case presentationCompiler.Block(stats, expr) =>
-                "Block" -> ""
-              case presentationCompiler.If(cond, thenp, elsep) =>
-                "If" -> ""
-              case presentationCompiler.CaseDef(pat, guard, body) =>
-                "Case" -> ""
-              case presentationCompiler.Bind(name, body) =>
-                "Bind" -> name.toString
-              case presentationCompiler.Function(vparams, body) =>
-                "Function" -> String.join(", ", vparams.map(_.toString).asJava)
-              case presentationCompiler.Match(selector, cases) =>
-                "Match" -> ""
-              case presentationCompiler.Throw(expr) =>
-                "Throw" -> ""
-              case presentationCompiler.ClassDef(mods, name, tparams, impl) =>
-                "Class" -> name.toString
-              case presentationCompiler.ModuleDef(mods, name, impl) =>
-                "Module" -> name.toString
-              case presentationCompiler.TypeDef(mods, name, tparams, rhs) =>
-                "Type" -> name.toString
-              case presentationCompiler.LabelDef(name, params, rhs) =>
-                "Label" -> name.toString
-              case presentationCompiler.PackageDef(pid, stats) =>
-                "Package" -> pid.toString
-              case presentationCompiler.Return(expr) =>
-                "Return" -> ""
-              case _ =>
-                "" -> ""
-            }
-            positionTreeStack = preservedSpanTreeStack.enqueue(PositionTree(tree.pos, positionTreeStack, typeName, name))
+        val informationFromInterestingTree = if (tree.pos.isOpaqueRange) {
+          PartialFunction.condOpt(tree) {
+            case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
+              "Val" -> name.toString
+            case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
+              "Def" -> name.toString
+            case presentationCompiler.Block(stats, expr) =>
+              "Block" -> ""
+            case presentationCompiler.If(cond, thenp, elsep) =>
+              "If" -> ""
+            case presentationCompiler.CaseDef(pat, guard, body) =>
+              "Case" -> ""
+            case presentationCompiler.Function(vparams, body) =>
+              "Function" -> ""
+            case presentationCompiler.Match(selector, cases) =>
+              "Match" -> ""
+            case presentationCompiler.ClassDef(mods, name, tparams, impl) =>
+              "Class" -> name.toString
+            case presentationCompiler.ModuleDef(mods, name, impl) =>
+              "Module" -> name.toString
+            case presentationCompiler.TypeDef(mods, name, tparams, rhs) =>
+              "Type" -> name.toString
+            case presentationCompiler.PackageDef(pid, stats) =>
+              "Package" -> pid.toString
           }
+        } else None
+        informationFromInterestingTree match {
+          case Some((typeName, name)) =>
+            val stackedPositionTreeQueue = positionTreeQueue
+
+            positionTreeQueue = emptyPositionTreeQueue
+            super.traverse(tree)
+            positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith(((lhs, rhs) => lhs.position.precedes(rhs.position))), typeName, name))
+
+          case None => super.traverse(tree)
         }
       }
     }
@@ -105,8 +113,18 @@ object FileProcessor {
 
     positionTreeBuilder.traverse(overallTree)
 
-    val positionTree = positionTreeBuilder.positionTreeStack.head
+    val positionTree = positionTreeBuilder.positionTreeQueue.head
 
+    /*    def adjustToCoverTheSourceWithoutGaps(positionTree: PositionTree) ={
+          def adjustToCoverTheSourceWithoutGaps(positionTree: PositionTree, onePastTheEndAfterAdjustment: Int) = {
+            val (adjustedChildren, startOfChildren) = positionTree.children :\ one
+            positionTree -> 0
+          }
+
+          adjustToCoverTheSourceWithoutGaps(positionTree, positionTree.position.end)._1
+        }*/
+
+    // TODO -remove!!!!
     val adjustChildPositionsToCoverTheSourceContiguously: PositionTree => PositionTree = {
       case positionTree@PositionTree(position, Seq(), _, _) => positionTree
       case positionTree@PositionTree(position, children, _, _) =>
@@ -116,16 +134,17 @@ object FileProcessor {
         positionTree.copy(children = adjustedChildren)
     }
 
-    val adjustPositionToBeConsistentWithItsChildren: PositionTree => PositionTree = {
-      case positionTree@PositionTree(position, Seq(), _, _) => positionTree
-      case positionTree@PositionTree(position, children, _, _) =>
-        val startOfFirstChild = children.head.position.pos.start
-        val onePastEndOfLastChild = children.last.position.pos.end
-        val positionConsistentWithChildren = position.withStart(Ordering[Int].min(position.start, startOfFirstChild)).withEnd(Ordering[Int].max(position.end, onePastEndOfLastChild))
-        positionTree.copy(position = positionConsistentWithChildren)
-    }
+    /*    // TODO - remove!!!!
+        val adjustPositionToBeConsistentWithItsChildren: PositionTree => PositionTree = {
+          case positionTree@PositionTree(position, Seq(), _, _) => positionTree
+          case positionTree@PositionTree(position, children, _, _) =>
+            val startOfFirstChild = children.head.position.pos.start
+            val onePastEndOfLastChild = children.last.position.pos.end
+            val positionConsistentWithChildren = position.withStart(Ordering[Int].min(position.start, startOfFirstChild)).withEnd(Ordering[Int].max(position.end, onePastEndOfLastChild))
+            positionTree.copy(position = positionConsistentWithChildren)
+        }*/
 
-    val positionTreeWithInternalAdjustments = positionTree.transform(adjustChildPositionsToCoverTheSourceContiguously andThen adjustPositionToBeConsistentWithItsChildren)
+    val positionTreeWithInternalAdjustments = positionTree.transform(adjustChildPositionsToCoverTheSourceContiguously)
 
 
     val source = overallTree.pos.source
@@ -137,7 +156,7 @@ object FileProcessor {
       case PositionTree(position, children, _, _) =>
         val startOfPositionTree = children.head.position.start
         if (startOfPositionTree > startOfSource)
-          Some(PositionTree(Position.range(source, startOfSource, startOfSource, startOfPositionTree), Iterable.empty, "", ""))
+          Some(PositionTree(Position.range(source, startOfSource, startOfSource, startOfPositionTree), Seq.empty, "", ""))
         else
           None
     }
@@ -146,7 +165,7 @@ object FileProcessor {
       case PositionTree(position, children, _, _) =>
         val onePastEndOfPositionTree = children.last.position.end
         if (onePastEndOfPositionTree < onePastEndOfSource)
-          Some(PositionTree(Position.range(source, onePastEndOfPositionTree, onePastEndOfPositionTree, onePastEndOfSource), Iterable.empty, "", ""))
+          Some(PositionTree(Position.range(source, onePastEndOfPositionTree, onePastEndOfPositionTree, onePastEndOfSource), Seq.empty, "", ""))
         else
           None
     }
