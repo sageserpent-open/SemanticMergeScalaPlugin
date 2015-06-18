@@ -1,1 +1,2 @@
-java -jar neptunium_2.11-1.0-one-jar.jar %1 %2
+@echo off
+java -jar "C:\Users\Gerard\OneDrive\Documents\Neptunium\target\scala-2.11\neptunium.jar" %1 %2
