@@ -59,11 +59,11 @@ object FileProcessor {
       override def traverse(tree: presentationCompiler.Tree) = {
         val informationFromInterestingTree = if (tree.pos.isOpaqueRange) {
           PartialFunction.condOpt(tree) {
-            case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
-              "Val" -> name.toString
+/*            case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
+              "Val" -> name.toString*/
             case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
               "Def" -> name.toString
-            case presentationCompiler.Block(stats, expr) =>
+/*            case presentationCompiler.Block(stats, expr) =>
               "Block" -> ""
             case presentationCompiler.If(cond, thenp, elsep) =>
               "If" -> ""
@@ -72,7 +72,7 @@ object FileProcessor {
             case presentationCompiler.Function(vparams, body) =>
               "Function" -> ""
             case presentationCompiler.Match(selector, cases) =>
-              "Match" -> ""
+              "Match" -> ""*/
             case presentationCompiler.ClassDef(mods, name, tparams, impl) =>
               "Class" -> name.toString
             case presentationCompiler.ModuleDef(mods, name, impl) =>
