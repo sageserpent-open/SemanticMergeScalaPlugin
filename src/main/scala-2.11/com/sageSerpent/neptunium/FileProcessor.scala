@@ -1,6 +1,8 @@
 package com.sageSerpent.neptunium
 
 
+import java.nio.file.Path
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.reflect.internal.util.{BatchSourceFile, Position}
@@ -11,12 +13,12 @@ import scala.tools.nsc.reporters.AbstractReporter
 
 
 object FileProcessor {
-  def discoverStructure(pathOfInputFile: String, pathOfOutputFileForYamlResult: String) {
+  def discoverStructure(jarWithNonPossiblyNonStandardExtensionProvidingThisCode: Path)(pathOfInputFile: String, pathOfOutputFileForYamlResult: String) {
     val sourceFile = new PlainFile(pathOfInputFile)
 
     val settings = new Settings()
 
-    val classPath = System.getProperty("java.class.path")
+    val classPath = jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString
 
     settings.bootclasspath.append(classPath) // Voodoo required by the Scala presentation compiler.
 

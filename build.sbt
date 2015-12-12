@@ -19,6 +19,8 @@ lazy val neptunium = (project in file(".")).settings(
   libraryDependencies += "org.scalaz.stream" %% "scalaz-stream" % "0.8",
   libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.0",
 
+  libraryDependencies += "com.jsuereth" %% "scala-arm" % "1.4",
+
   allInOneCommandScript := {
     val jarFile = assembly.value
     val stubFile = baseDirectory.value / "neptuniumStub.cmd"
