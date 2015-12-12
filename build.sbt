@@ -21,7 +21,13 @@ lazy val neptunium = (project in file(".")).settings(
 
   libraryDependencies += "com.jsuereth" %% "scala-arm" % "1.4",
 
-  allInOneCommandScript := {
+  libraryDependencies += "org.log4s" %% "log4s" % "1.2.1",
+
+  libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % "2.5",
+  libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % "2.5",
+  libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.5",
+
+    allInOneCommandScript := {
     val jarFile = assembly.value
     val stubFile = baseDirectory.value / "neptuniumStub.cmd"
     val allInOneCommandScriptFile = target.value / "neptunium.cmd"

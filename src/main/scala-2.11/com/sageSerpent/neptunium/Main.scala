@@ -5,18 +5,21 @@
 package com.sageSerpent.neptunium
 
 import java.io.File
-import java.nio.file.{Path, Files}
+import java.nio.file.{Files, Path}
 
 import resource._
 
 import scalaz.concurrent.Task
 import scalaz.stream._
 import scalaz.{-\/, \/-}
+import org.log4s._
 
 object Main extends App {
+  private [this] val logger = getLogger
+
   val jarWithNonPossiblyNonStandardExtensionProvidingThisCode = new File(Main.getClass.getProtectionDomain.getCodeSource.getLocation.getPath).toPath
 
-  def removeJunk(path: Path): Unit = path.toFile.delete()
+  def removeJunk(path: Path): Unit = path.toFile.deleteOnExit()
 
   for {
     locationOfLinkAlias <- makeManagedResource(Files.createTempDirectory("SemanticMergeScalaPlugin"))(removeJunk _)(List.empty)
@@ -47,18 +50,25 @@ object Main extends App {
 
     val endOfInputSentinelFromSemanticMerge = "end"
 
-    val pathsOfFiles = io.stdInLines takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
+    val loggingSink = Process.constant((line: String) => Task{logger.info(line)}).toSource
+
+    val pathsOfFiles = io.stdInLines observe loggingSink takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
 
     val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2).takeWhile(2 == _.length)
     val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
       FileProcessor.discoverStructure(linkAlias)(pathOfFileToBeProcessed, pathOfResultFile)
     }.attempt
     } |> process1.lift { case \/-(()) => "OK"
-    case -\/(error) => "KO"
+    case -\/(error) => {
+      logger.error(error)("Caught exception.")
+      "KO"
+    }
     }
     val endToEndProcessing = statuses to io.stdOutLines
 
     endToEndProcessing.run.run
+
+    println("Done.")
   }
 
   def linkAliasIn(locationOfLinkAlias: Path): Path = {
