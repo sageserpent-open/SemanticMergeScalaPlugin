@@ -2,7 +2,6 @@ package com.sageSerpent.neptunium
 
 
 import java.nio.file.Path
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.reflect.internal.util.{BatchSourceFile, Position}
@@ -10,15 +9,18 @@ import scala.reflect.io.PlainFile
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.AbstractReporter
+import org.log4s._
 
 
 object FileProcessor {
-  def discoverStructure(jarWithNonPossiblyNonStandardExtensionProvidingThisCode: Path)(pathOfInputFile: String, pathOfOutputFileForYamlResult: String) {
+  private [this] val logger = getLogger
+
+  def discoverStructure(jarProvidingThisCode: Path)(pathOfInputFile: String, pathOfOutputFileForYamlResult: String) {
     val sourceFile = new PlainFile(pathOfInputFile)
 
-    val settings = new Settings()
+    val settings = new Settings((message: String) => logger.info(message))
 
-    val classPath = jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString
+    val classPath = jarProvidingThisCode.toString
 
     settings.bootclasspath.append(classPath) // Voodoo required by the Scala presentation compiler.
 
@@ -38,7 +40,7 @@ object FileProcessor {
 
     val reporter = new CapturingReporter(settings)
 
-    val presentationCompiler: Global = new Global(settings, reporter)
+    val presentationCompiler = new Global(settings, reporter)
     val overallTree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
     val parsingErrorsDetected = reporter.hasErrors
 
