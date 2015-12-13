@@ -13,7 +13,7 @@ import org.log4s._
 
 
 object FileProcessor {
-  private [this] val logger = getLogger
+  private[this] val logger = getLogger
 
   def discoverStructure(jarProvidingThisCode: Path)(pathOfInputFile: String, pathOfOutputFileForYamlResult: String) {
     val sourceFile = new PlainFile(pathOfInputFile)
@@ -63,42 +63,38 @@ object FileProcessor {
       var positionTreeQueue = emptyPositionTreeQueue
 
       override def traverse(tree: presentationCompiler.Tree) = {
-        val informationFromInterestingTree = if (tree.pos.isOpaqueRange) {
+        val interestingTreeData = if (tree.pos.isOpaqueRange) {
           PartialFunction.condOpt(tree) {
             case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
-              "Val" -> name.toString
+              InterestingTreeData("Val", name.toString)
             case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
-              "Def" -> name.toString
+              InterestingTreeData("Def", name.toString)
             case presentationCompiler.Block(stats, expr) =>
-              "Block" -> ""
+              InterestingTreeData("Block", "")
             case presentationCompiler.If(cond, thenp, elsep) =>
-              "If" -> ""
+              InterestingTreeData("If", "")
             case presentationCompiler.CaseDef(pat, guard, body) =>
-              "Case" -> ""
+              InterestingTreeData("Case", "")
             case presentationCompiler.Function(vparams, body) =>
-              "Function" -> ""
+              InterestingTreeData("Function", "")
             case presentationCompiler.Match(selector, cases) =>
-              "Match" -> ""
+              InterestingTreeData("Match", "")
             case presentationCompiler.ClassDef(mods, name, tparams, impl) =>
-              "Class" -> name.toString
+              InterestingTreeData("Class", name.toString)
             case presentationCompiler.ModuleDef(mods, name, impl) =>
-              "Module" -> name.toString
+              InterestingTreeData("Module", name.toString)
             case presentationCompiler.TypeDef(mods, name, tparams, rhs) =>
-              "Type" -> name.toString
+              InterestingTreeData("Type", name.toString)
             case presentationCompiler.PackageDef(pid, stats) =>
-              "Package" -> pid.toString
+              InterestingTreeData("Package", pid.toString)
           }
         } else None
-        informationFromInterestingTree match {
-          case Some((typeName, name)) =>
-            val stackedPositionTreeQueue = positionTreeQueue
 
-            positionTreeQueue = emptyPositionTreeQueue
-            super.traverse(tree)
-            positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith(((lhs, rhs) => lhs.position.precedes(rhs.position))), Some(InterestingTreeData(typeName, name))))
+        val stackedPositionTreeQueue = positionTreeQueue
 
-          case None => super.traverse(tree)
-        }
+        positionTreeQueue = emptyPositionTreeQueue
+        super.traverse(tree)
+        positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith(((lhs, rhs) => lhs.position.precedes(rhs.position))), interestingTreeData))
       }
     }
 
