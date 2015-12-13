@@ -107,12 +107,12 @@ object FileProcessor {
     val positionTree = positionTreeBuilder.positionTreeQueue.head
 
     val adjustChildPositionsToCoverTheSourceContiguously: PositionTree => PositionTree = {
-      case positionTree@PositionTree(position, Seq(), _, _) => positionTree
-      case positionTree@PositionTree(position, children, _, _) =>
+      case positionTree@PositionTree(position, children, _, _) if children.nonEmpty =>
         val pairsOfPositionTreeAndOnePastItsEndAfterAdjustment = children.sliding(2).filter(2 == _.size).map { case Seq(predecessor, successor) => predecessor -> successor.position.pos.start }
         val adjustedPositionTrees = pairsOfPositionTreeAndOnePastItsEndAfterAdjustment.map { case (positionTree, onePastTheEndAfterAdjustment) => positionTree.copy(position = positionTree.position.withEnd(onePastTheEndAfterAdjustment)) }
         val adjustedChildren = adjustedPositionTrees.toList :+ children.last
         positionTree.copy(children = adjustedChildren)
+      case positionTree => positionTree
     }
 
     val positionTreeWithInternalAdjustments = positionTree.transform(adjustChildPositionsToCoverTheSourceContiguously)
