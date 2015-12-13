@@ -1,17 +1,40 @@
-mainClass := Some("com.sageSerpent.neptunium.Main")
+import sbt.IO
 
-assemblyJarName in assembly := "neptunium.jar"
+val allInOneCommandScript = taskKey[File]("Creates a self-contained Windows command script.")
 
-resolvers += "Scalaz Bintray Repo" at "https://dl.bintray.com/scalaz/releases"
+lazy val neptunium = (project in file(".")).settings(
+  mainClass := Some("com.sageSerpent.neptunium.Main"),
 
-name := "Neptunium"
+  assemblyJarName in assembly := "neptunium.jar",
 
-version := "1.0"
+  name := "Neptunium",
+  version := "1.0",
 
-scalaVersion := "2.11.6"
+  scalaVersion := "2.11.7",
 
-libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.6"
-libraryDependencies += "org.scala-lang" % "scala-library" % "2.11.6"
-libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.11.6"
+  libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.11.7",
+  libraryDependencies += "org.scala-lang" % "scala-library" % "2.11.7",
+  libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.11.7",
 
-libraryDependencies += "org.scalaz.stream" %% "scalaz-stream" % "0.7a"
+  libraryDependencies += "org.scalaz.stream" %% "scalaz-stream" % "0.8",
+  libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.0",
+
+  libraryDependencies += "com.jsuereth" %% "scala-arm" % "1.4",
+
+  libraryDependencies += "org.log4s" %% "log4s" % "1.2.1",
+
+  libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % "2.5",
+  libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % "2.5",
+  libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.5",
+
+    allInOneCommandScript := {
+    val jarFile = assembly.value
+    val stubFile = baseDirectory.value / "neptuniumStub.cmd"
+    val allInOneCommandScriptFile = target.value / "neptunium.cmd"
+    IO.append(allInOneCommandScriptFile, IO.readBytes(stubFile))
+    IO.append(allInOneCommandScriptFile, IO.readBytes(jarFile))
+    allInOneCommandScriptFile
+  }
+)
+
+
