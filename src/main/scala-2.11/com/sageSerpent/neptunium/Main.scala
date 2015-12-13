@@ -60,7 +60,7 @@ object Main extends App {
 
     val loggingSink = Process.constant((line: String) => Task{logger.info(line)}).toSource
 
-    val pathsOfFiles = io.stdInLines observe loggingSink takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
+    val pathsOfFiles = io.linesR(System.in) observe loggingSink takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
 
     val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2).takeWhile(2 == _.length)
     val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
