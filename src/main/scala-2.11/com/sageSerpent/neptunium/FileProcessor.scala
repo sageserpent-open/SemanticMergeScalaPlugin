@@ -124,21 +124,23 @@ object FileProcessor {
     val onePastEndOfSource = source.length
 
     val fragmentToPadOutFromStartOfSource = positionTreeWithInternalAdjustments match {
-      case PositionTree(position, children, _, _) =>
+      case PositionTree(position, children, _, _) if children.nonEmpty =>
         val startOfPositionTree = children.head.position.start
         if (startOfPositionTree > startOfSource)
           Some(PositionTree(Position.range(source, startOfSource, startOfSource, startOfPositionTree), Seq.empty, "", ""))
         else
           None
+      case _ => None
     }
 
     val fragmentToPadOutToEndOfSource = positionTreeWithInternalAdjustments match {
-      case PositionTree(position, children, _, _) =>
+      case PositionTree(position, children, _, _) if children.nonEmpty =>
         val onePastEndOfPositionTree = children.last.position.end
         if (onePastEndOfPositionTree < onePastEndOfSource)
           Some(PositionTree(Position.range(source, onePastEndOfPositionTree, onePastEndOfPositionTree, onePastEndOfSource), Seq.empty, "", ""))
         else
           None
+      case _ => None
     }
 
     val positionTreeCoveringEntireSource = fragmentToPadOutFromStartOfSource -> fragmentToPadOutToEndOfSource match {
