@@ -63,38 +63,40 @@ object FileProcessor {
       var positionTreeQueue = emptyPositionTreeQueue
 
       override def traverse(tree: presentationCompiler.Tree) = {
-        val interestingTreeData = if (tree.pos.isOpaqueRange) {
-          PartialFunction.condOpt(tree) {
-            case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
-              InterestingTreeData("Val", name.toString)
-            case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
-              InterestingTreeData("Def", name.toString)
-            case presentationCompiler.Block(stats, expr) =>
-              InterestingTreeData("Block", "")
-            case presentationCompiler.If(cond, thenp, elsep) =>
-              InterestingTreeData("If", "")
-            case presentationCompiler.CaseDef(pat, guard, body) =>
-              InterestingTreeData("Case", "")
-            case presentationCompiler.Function(vparams, body) =>
-              InterestingTreeData("Function", "")
-            case presentationCompiler.Match(selector, cases) =>
-              InterestingTreeData("Match", "")
-            case presentationCompiler.ClassDef(mods, name, tparams, impl) =>
-              InterestingTreeData("Class", name.toString)
-            case presentationCompiler.ModuleDef(mods, name, impl) =>
-              InterestingTreeData("Module", name.toString)
-            case presentationCompiler.TypeDef(mods, name, tparams, rhs) =>
-              InterestingTreeData("Type", name.toString)
-            case presentationCompiler.PackageDef(pid, stats) =>
-              InterestingTreeData("Package", pid.toString)
-          }
-        } else None
+        if (tree.pos.isOpaqueRange) {
+          val interestingTreeData =
+            PartialFunction.condOpt(tree) {
+              case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
+                InterestingTreeData("Val", name.toString)
+              case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
+                InterestingTreeData("Def", name.toString)
+              case presentationCompiler.Block(stats, expr) =>
+                InterestingTreeData("Block", "")
+              case presentationCompiler.If(cond, thenp, elsep) =>
+                InterestingTreeData("If", "")
+              case presentationCompiler.CaseDef(pat, guard, body) =>
+                InterestingTreeData("Case", "")
+              case presentationCompiler.Function(vparams, body) =>
+                InterestingTreeData("Function", "")
+              case presentationCompiler.Match(selector, cases) =>
+                InterestingTreeData("Match", "")
+              case presentationCompiler.ClassDef(mods, name, tparams, impl) =>
+                InterestingTreeData("Class", name.toString)
+              case presentationCompiler.ModuleDef(mods, name, impl) =>
+                InterestingTreeData("Module", name.toString)
+              case presentationCompiler.TypeDef(mods, name, tparams, rhs) =>
+                InterestingTreeData("Type", name.toString)
+              case presentationCompiler.PackageDef(pid, stats) =>
+                InterestingTreeData("Package", pid.toString)
+            }
 
-        val stackedPositionTreeQueue = positionTreeQueue
+          val stackedPositionTreeQueue = positionTreeQueue
 
-        positionTreeQueue = emptyPositionTreeQueue
-        super.traverse(tree)
-        positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith(((lhs, rhs) => lhs.position.precedes(rhs.position))), interestingTreeData))
+          positionTreeQueue = emptyPositionTreeQueue
+          super.traverse(tree)
+          positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith(((lhs, rhs) => lhs.position.precedes(rhs.position))), interestingTreeData))
+        }
+        else super.traverse(tree)
       }
     }
 
@@ -103,6 +105,17 @@ object FileProcessor {
     positionTreeBuilder.traverse(overallTree)
 
     val positionTree = positionTreeBuilder.positionTreeQueue.head
+
+    val squashTreePreservingInterestingBits: PositionTree => PositionTree = {
+      case positionTree@PositionTree(position, children, _) if children.nonEmpty =>
+        positionTree.copy(children = children flatMap {
+          case interestingPositionTree@PositionTree(_, _, Some(_)) => Seq(interestingPositionTree)
+          case PositionTree(_, children, None) => children
+        })
+      case positionTree => positionTree
+    }
+
+    val squashedPositionTree = positionTree.transform(squashTreePreservingInterestingBits)
 
     val adjustChildPositionsToCoverTheSourceContiguously: PositionTree => PositionTree = {
       case positionTree@PositionTree(position, children, _) if children.nonEmpty =>
@@ -113,7 +126,7 @@ object FileProcessor {
       case positionTree => positionTree
     }
 
-    val positionTreeWithInternalAdjustments = positionTree.transform(adjustChildPositionsToCoverTheSourceContiguously)
+    val positionTreeWithInternalAdjustments = squashedPositionTree.transform(adjustChildPositionsToCoverTheSourceContiguously)
 
 
     val source = overallTree.pos.source
