@@ -66,26 +66,12 @@ object FileProcessor {
         if (tree.pos.isOpaqueRange) {
           val interestingTreeData =
             PartialFunction.condOpt(tree) {
-              case presentationCompiler.ValDef(mods, name, tpt, rhs) =>
-                InterestingTreeData("Val", name.toString)
               case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
                 InterestingTreeData("Def", name.toString)
-              case presentationCompiler.Block(stats, expr) =>
-                InterestingTreeData("Block", "")
-              case presentationCompiler.If(cond, thenp, elsep) =>
-                InterestingTreeData("If", "")
-              case presentationCompiler.CaseDef(pat, guard, body) =>
-                InterestingTreeData("Case", "")
-              case presentationCompiler.Function(vparams, body) =>
-                InterestingTreeData("Function", "")
-              case presentationCompiler.Match(selector, cases) =>
-                InterestingTreeData("Match", "")
               case presentationCompiler.ClassDef(mods, name, tparams, impl) =>
                 InterestingTreeData("Class", name.toString)
               case presentationCompiler.ModuleDef(mods, name, impl) =>
                 InterestingTreeData("Module", name.toString)
-              case presentationCompiler.TypeDef(mods, name, tparams, rhs) =>
-                InterestingTreeData("Type", name.toString)
               case presentationCompiler.PackageDef(pid, stats) =>
                 InterestingTreeData("Package", pid.toString)
             }
