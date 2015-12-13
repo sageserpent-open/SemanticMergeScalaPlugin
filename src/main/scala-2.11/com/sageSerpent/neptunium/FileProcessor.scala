@@ -46,7 +46,9 @@ object FileProcessor {
 
     val sourceText = String.copyValueOf(overallTree.pos.source.content)
 
-    case class PositionTree(position: Position, children: Seq[PositionTree], typeName: String, name: String) {
+    case class InterestingTreeData(typeName: String, name: String)
+
+    case class PositionTree(position: Position, children: Seq[PositionTree], interestingTreeData: Option[InterestingTreeData]) {
       require(position.isOpaqueRange)
       require(children.sliding(2).filter(2 == _.size).forall { case Seq(predecessor, successor) => predecessor.position.precedes(successor.position) })
 
@@ -93,7 +95,7 @@ object FileProcessor {
 
             positionTreeQueue = emptyPositionTreeQueue
             super.traverse(tree)
-            positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith(((lhs, rhs) => lhs.position.precedes(rhs.position))), typeName, name))
+            positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith(((lhs, rhs) => lhs.position.precedes(rhs.position))), Some(InterestingTreeData(typeName, name))))
 
           case None => super.traverse(tree)
         }
@@ -107,7 +109,7 @@ object FileProcessor {
     val positionTree = positionTreeBuilder.positionTreeQueue.head
 
     val adjustChildPositionsToCoverTheSourceContiguously: PositionTree => PositionTree = {
-      case positionTree@PositionTree(position, children, _, _) if children.nonEmpty =>
+      case positionTree@PositionTree(position, children, _) if children.nonEmpty =>
         val pairsOfPositionTreeAndOnePastItsEndAfterAdjustment = children.sliding(2).filter(2 == _.size).map { case Seq(predecessor, successor) => predecessor -> successor.position.pos.start }
         val adjustedPositionTrees = pairsOfPositionTreeAndOnePastItsEndAfterAdjustment.map { case (positionTree, onePastTheEndAfterAdjustment) => positionTree.copy(position = positionTree.position.withEnd(onePastTheEndAfterAdjustment)) }
         val adjustedChildren = adjustedPositionTrees.toList :+ children.last
@@ -124,20 +126,20 @@ object FileProcessor {
     val onePastEndOfSource = source.length
 
     val fragmentToPadOutFromStartOfSource = positionTreeWithInternalAdjustments match {
-      case PositionTree(position, children, _, _) if children.nonEmpty =>
+      case PositionTree(position, children, _) if children.nonEmpty =>
         val startOfPositionTree = children.head.position.start
         if (startOfPositionTree > startOfSource)
-          Some(PositionTree(Position.range(source, startOfSource, startOfSource, startOfPositionTree), Seq.empty, "", ""))
+          Some(PositionTree(Position.range(source, startOfSource, startOfSource, startOfPositionTree), Seq.empty, None))
         else
           None
       case _ => None
     }
 
     val fragmentToPadOutToEndOfSource = positionTreeWithInternalAdjustments match {
-      case PositionTree(position, children, _, _) if children.nonEmpty =>
+      case PositionTree(position, children, _) if children.nonEmpty =>
         val onePastEndOfPositionTree = children.last.position.end
         if (onePastEndOfPositionTree < onePastEndOfSource)
-          Some(PositionTree(Position.range(source, onePastEndOfPositionTree, onePastEndOfPositionTree, onePastEndOfSource), Seq.empty, "", ""))
+          Some(PositionTree(Position.range(source, onePastEndOfPositionTree, onePastEndOfPositionTree, onePastEndOfSource), Seq.empty, None))
         else
           None
       case _ => None
@@ -154,7 +156,7 @@ object FileProcessor {
     }
 
     val yamlFrom: PositionTree => String = {
-      case PositionTree(rootPosition, childrenOfRoot, _, _) =>
+      case PositionTree(rootPosition, childrenOfRoot, _) =>
         def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
           val offset = offsetFrom(position)
           if (offset < position.source.length) {
@@ -192,13 +194,16 @@ object FileProcessor {
         def yamlForSubpieces(yamlForSubpiece: PositionTree => Iterable[String], pieces: Iterable[PositionTree]): Iterable[String] =
           pieces.flatMap(yamlForSubpiece andThen indentPieces)
 
+        val fallbackForLackOfInterestingTreeData = InterestingTreeData("Code", "")
+
         def yamlForSection(section: PositionTree): Iterable[String] = {
-          def yamlForContainer(position: Position, children: Iterable[PositionTree], typeName: String, name: String): Iterable[String] = {
+          def yamlForContainer(position: Position, children: Iterable[PositionTree], interestingTreeData: Option[InterestingTreeData]): Iterable[String] = {
             require(children.nonEmpty)
             val startOfFirstChild = children.head.position.pos.start
             val onePastEndOfLastChild = children.last.position.pos.end
             val headerSpan = position.withEnd(startOfFirstChild)
             val footerSpan = position.withStart(onePastEndOfLastChild)
+            val InterestingTreeData(typeName, name) = interestingTreeData.getOrElse(fallbackForLackOfInterestingTreeData)
             Iterable(s"- type : $typeName",
               s"  name : $name",
               s"  locationSpan : ${yamlForLineSpan(position)}",
@@ -210,7 +215,8 @@ object FileProcessor {
                 Iterable.empty[String])
           }
 
-          def yamlForTerminal(terminalPosition: Position, typeName: String, name: String): Iterable[String] = {
+          def yamlForTerminal(terminalPosition: Position, interestingTreeData: Option[InterestingTreeData]): Iterable[String] = {
+            val InterestingTreeData(typeName, name) = interestingTreeData.getOrElse(fallbackForLackOfInterestingTreeData)
             Iterable(s"- type : $typeName",
               s"  name : $name",
               s"  locationSpan : ${yamlForLineSpan(terminalPosition)}",
@@ -218,8 +224,8 @@ object FileProcessor {
           }
 
           section match {
-            case PositionTree(position, Seq(), typeName, name) => yamlForTerminal(position, typeName, name)
-            case PositionTree(position, children, typeName, name) => yamlForContainer(position, children, typeName, name)
+            case PositionTree(position, Seq(), interestingTreeData) => yamlForTerminal(position, interestingTreeData)
+            case PositionTree(position, children, interestingTreeData) => yamlForContainer(position, children, interestingTreeData)
           }
         }
 
