@@ -9,6 +9,7 @@ import java.nio.file.{Files, Path}
 
 import resource._
 
+import scala.util.{Success, Failure, Try}
 import scalaz.concurrent.Task
 import scalaz.stream._
 import scalaz.{-\/, \/-}
@@ -19,7 +20,14 @@ object Main extends App {
 
   val jarWithNonPossiblyNonStandardExtensionProvidingThisCode = new File(Main.getClass.getProtectionDomain.getCodeSource.getLocation.getPath).toPath
 
-  def removeJunk(path: Path): Unit = path.toFile.deleteOnExit()
+  def removeJunk(path: Path): Unit = {
+    logger.info(s"Removing: $path.")
+    Try(path.toFile.delete()) match {
+      case Success(true) => logger.info(s"Removed: $path successfully.")
+      case Success(false) => logger.error(s"Failed to remove $path - no reason given.")
+      case Failure(error) => logger.error(error)(s"Failed to remove $path.")
+    }
+  }
 
   for {
     locationOfLinkAlias <- makeManagedResource(Files.createTempDirectory("SemanticMergeScalaPlugin"))(removeJunk _)(List.empty)
@@ -60,7 +68,7 @@ object Main extends App {
     }.attempt
     } |> process1.lift { case \/-(()) => "OK"
     case -\/(error) => {
-      logger.error(error)("Caught exception.")
+      logger.error(error)("Caught exception thrown by FileProcessor.")
       "KO"
     }
     }
@@ -68,13 +76,13 @@ object Main extends App {
 
     endToEndProcessing.run.run
 
-    println("Done.")
+    logger.info("Plugin exiting.")
   }
 
   def linkAliasIn(locationOfLinkAlias: Path): Path = {
     val linkAlias = locationOfLinkAlias.resolve("SemanticMergeScalaPlugin.jar")
     linkAlias.toFile.setReadable(true)
-    linkAlias.toFile.setWritable(false)
+    linkAlias.toFile.setWritable(true)
     linkAlias.toFile.setExecutable(true)
     linkAlias
   }
