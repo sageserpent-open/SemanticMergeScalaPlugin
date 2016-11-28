@@ -28,20 +28,21 @@ object Main extends App {
   }
 
   for {
-    locationOfLinkAlias <- makeManagedResource(Files.createTempDirectory("SemanticMergeScalaPlugin"))(removeJunk)(List.empty)
-    linkAlias = linkAliasIn(locationOfLinkAlias)
-    _ <- makeManagedResource(Files.createLink(linkAlias, jarWithNonPossiblyNonStandardExtensionProvidingThisCode))(removeJunk)(List.empty)
+    locationOfLibraryJar <- makeManagedResource({
+      val tempDirectory = Files.createTempDirectory("SemanticMergeScalaPlugin")
+      tempDirectory.toFile.setWritable(true)
+      tempDirectory
+    })(removeJunk)(List.empty)
+    libraryJar <- makeManagedResource({
+      val libraryJar = Files.copy(jarWithNonPossiblyNonStandardExtensionProvidingThisCode, locationOfLibraryJar.resolve("SemanticMergeScalaPlugin.jar"))
+      libraryJar.toFile.setReadable(true)
+      libraryJar.toFile.setWritable(true)
+      libraryJar.toFile.setExecutable(true)
+      libraryJar
+    })(removeJunk)(List.empty)
   } {
-    new ProcessBuilder(List("java", "-cp", jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString, "com.sageSerpent.neptunium.Subprocess") ++ args :+ linkAlias.toString).inheritIO.start().wait()
+    new ProcessBuilder(List("java", "-cp", jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString, "com.sageSerpent.neptunium.Subprocess") ++ args :+ libraryJar.toString).inheritIO.start().waitFor()
 
     logger.info("Plugin exiting.")
-  }
-
-  def linkAliasIn(locationOfLinkAlias: Path): Path = {
-    val linkAlias = locationOfLinkAlias.resolve("SemanticMergeScalaPlugin.jar")
-    linkAlias.toFile.setReadable(true)
-    linkAlias.toFile.setWritable(true)
-    linkAlias.toFile.setExecutable(true)
-    linkAlias
   }
 }
