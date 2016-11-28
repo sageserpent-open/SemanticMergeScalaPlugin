@@ -30,9 +30,9 @@ object Main extends App {
   }
 
   for {
-    locationOfLinkAlias <- makeManagedResource(Files.createTempDirectory("SemanticMergeScalaPlugin"))(removeJunk _)(List.empty)
+    locationOfLinkAlias <- makeManagedResource(Files.createTempDirectory("SemanticMergeScalaPlugin"))(removeJunk)(List.empty)
     linkAlias = linkAliasIn(locationOfLinkAlias)
-    aliasedJarLocation <- makeManagedResource(Files.createLink(linkAlias, jarWithNonPossiblyNonStandardExtensionProvidingThisCode))((removeJunk _))(List.empty)
+    _ <- makeManagedResource(Files.createLink(linkAlias, jarWithNonPossiblyNonStandardExtensionProvidingThisCode))(removeJunk)(List.empty)
   } {
     val numberOfArguments = args.length
 
@@ -67,10 +67,9 @@ object Main extends App {
       FileProcessor.discoverStructure(linkAlias)(pathOfFileToBeProcessed, pathOfResultFile)
     }.attempt
     } |> process1.lift { case \/-(()) => "OK"
-    case -\/(error) => {
+    case -\/(error) =>
       logger.error(error)("Caught exception thrown by FileProcessor.")
       "KO"
-    }
     }
     val endToEndProcessing = statuses to io.stdOutLines
 
