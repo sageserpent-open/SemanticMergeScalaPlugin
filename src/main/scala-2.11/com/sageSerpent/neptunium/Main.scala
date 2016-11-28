@@ -21,9 +21,9 @@ object Main extends App {
   def removeJunk(path: Path): Unit = {
     logger.info(s"Removing: $path.")
     Try(path.toFile.delete()) match {
-      case Success(true) => logger.info(s"Removed: $path successfully.")
-      case Success(false) => logger.error(s"Failed to remove $path - no reason given.")
-      case Failure(error) => logger.error(error)(s"Failed to remove $path.")
+      case Success(true) => logger.info(s"Removed: '$path' successfully.")
+      case Success(false) => logger.error(s"Failed to remove '$path' - no reason given.")
+      case Failure(error) => logger.error(error)(s"Failed to remove '$path'.")
     }
   }
 
@@ -31,7 +31,7 @@ object Main extends App {
     locationOfLibraryJar <- makeManagedResource(temporaryDirectory)(removeJunk)(List.empty)
     libraryJar <- makeManagedResource(temporaryLibraryJar(locationOfLibraryJar))(removeJunk)(List.empty)
   } {
-    new ProcessBuilder(List("java", "-cp", jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString, "com.sageSerpent.neptunium.Subprocess") ++ args :+ libraryJar.toString).inheritIO.start().waitFor()
+    new ProcessBuilder(List("java", "-cp", jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString, Subprocess.getClass.getName.stripSuffix("$")) ++ args :+ libraryJar.toString).inheritIO.start().waitFor()
 
     logger.info("Plugin exiting.")
   }
