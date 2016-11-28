@@ -28,21 +28,25 @@ object Main extends App {
   }
 
   for {
-    locationOfLibraryJar <- makeManagedResource({
-      val tempDirectory = Files.createTempDirectory("SemanticMergeScalaPlugin")
-      tempDirectory.toFile.setWritable(true)
-      tempDirectory
-    })(removeJunk)(List.empty)
-    libraryJar <- makeManagedResource({
-      val libraryJar = Files.copy(jarWithNonPossiblyNonStandardExtensionProvidingThisCode, locationOfLibraryJar.resolve("SemanticMergeScalaPlugin.jar"))
-      libraryJar.toFile.setReadable(true)
-      libraryJar.toFile.setWritable(true)
-      libraryJar.toFile.setExecutable(true)
-      libraryJar
-    })(removeJunk)(List.empty)
+    locationOfLibraryJar <- makeManagedResource(temporaryDirectory)(removeJunk)(List.empty)
+    libraryJar <- makeManagedResource(temporaryLibraryJar(locationOfLibraryJar))(removeJunk)(List.empty)
   } {
     new ProcessBuilder(List("java", "-cp", jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString, "com.sageSerpent.neptunium.Subprocess") ++ args :+ libraryJar.toString).inheritIO.start().waitFor()
 
     logger.info("Plugin exiting.")
+  }
+
+  private def temporaryDirectory = {
+    val tempDirectory = Files.createTempDirectory("SemanticMergeScalaPlugin")
+    tempDirectory.toFile.setWritable(true)
+    tempDirectory
+  }
+
+  private def temporaryLibraryJar(locationOfLibraryJar: Path) = {
+    val libraryJar = Files.copy(jarWithNonPossiblyNonStandardExtensionProvidingThisCode, locationOfLibraryJar.resolve("SemanticMergeScalaPlugin.jar"))
+    libraryJar.toFile.setReadable(true)
+    libraryJar.toFile.setWritable(true)
+    libraryJar.toFile.setExecutable(true)
+    libraryJar
   }
 }
