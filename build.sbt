@@ -3,7 +3,7 @@ import sbt.IO
 val allInOneCommandScript = taskKey[File]("Creates a self-contained Windows command script.")
 
 lazy val neptunium = (project in file(".")).settings(
-  mainClass := Some("com.sageSerpent.neptunium.Main"),
+  mainClass := Some("com.sageserpent.neptunium.Main"),
 
   assemblyJarName in assembly := "neptunium.jar",
 

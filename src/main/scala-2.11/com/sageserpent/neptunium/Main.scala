@@ -2,7 +2,7 @@
   * Created by Gerard on 17/05/2015.
   */
 
-package com.sageSerpent.neptunium
+package com.sageserpent.neptunium
 
 import java.io.File
 import java.nio.file.{Files, Path}
@@ -38,10 +38,10 @@ object Main extends App {
 
     numberOfArguments match {
       case _@count if numberOfArgumentsExpected == count =>
-        for {
-          locationOfLibraryJar <- makeManagedResource(temporaryDirectory)(removeJunk)(List.empty)
-          libraryJar <- makeManagedResource(temporaryLibraryJar(locationOfLibraryJar))(removeJunk)(List.empty)
-        } {
+  for {
+    locationOfLibraryJar <- makeManagedResource(temporaryDirectory)(removeJunk)(List.empty)
+    libraryJar <- makeManagedResource(temporaryLibraryJar(locationOfLibraryJar))(removeJunk)(List.empty)
+  } {
           new ProcessBuilder(List("java", "-jar", jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString) ++ args :+ libraryJar.toString).inheritIO.start().waitFor()
         }
       case _@count if 1 + numberOfArgumentsExpected == count =>
@@ -84,11 +84,11 @@ object Main extends App {
 
         endToEndProcessing.run.run
 
-        logger.info("Plugin exiting.")
+    logger.info("Plugin exiting.")
       case _ =>
         throw new Error(
           s"ERROR: expected $numberOfArgumentsExpected arguments, got $numberOfArguments.")
-    }
+  }
   }
 
   private def temporaryDirectory = {
