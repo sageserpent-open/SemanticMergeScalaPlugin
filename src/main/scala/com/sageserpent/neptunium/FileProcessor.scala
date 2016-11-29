@@ -1,7 +1,12 @@
 package com.sageserpent.neptunium
 
 
+import java.io.{FileOutputStream, FileWriter, OutputStreamWriter}
 import java.nio.file.Path
+
+import org.log4s._
+import resource._
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.reflect.internal.util.{BatchSourceFile, Position}
@@ -9,7 +14,6 @@ import scala.reflect.io.PlainFile
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.AbstractReporter
-import org.log4s._
 
 
 object FileProcessor {
@@ -156,17 +160,20 @@ object FileProcessor {
           val offset = offsetFrom(position)
           if (offset < position.source.length) {
             val zeroRelativeLine = position.source.offsetToLine(offset)
-            val line = 1 + zeroRelativeLine // Semantic Merge uses one-relative line numbers...
+            val line = 1 + zeroRelativeLine
+            // Semantic Merge uses one-relative line numbers...
             val offsetOfStartOfLine = position.source.lineToOffset(zeroRelativeLine)
             val column = offset - offsetOfStartOfLine // ... but zero-relative column numbers.
             line -> column
           } else {
             val zeroRelativeLine = 1 + position.source.offsetToLine(position.source.length - 1)
-            val line = 1 + zeroRelativeLine // Semantic Merge uses one-relative line numbers...
+            val line = 1 + zeroRelativeLine
+            // Semantic Merge uses one-relative line numbers...
             val column = 0
             line -> column // ... but zero-relative column numbers.
           }
         }
+
         def yamlForLineSpan(position: Position) = {
           // Semantic Merge uses []-intervals (closed - closed) for line spans,
           // so we have to decrement the end position which is really one past
@@ -175,17 +182,23 @@ object FileProcessor {
           val (endLine, endColumn) = lineAndColumnFor(position, (_.end - 1))
           s"{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}"
         }
+
         def yamlForCharacterSpan(position: Position) =
         // Semantic Merge uses []-intervals (closed - closed) for character
         // spans, so we have to decrement the end position which is really
         // one past the end; 'Position' models a [)-interval (closed, open).
           s"[${position.start}, ${position.end - 1}]"
+
         val yamlForEmptyCharacterSpan = "[0, -1]"
+
         def indent(indentationLevel: Int)(line: String) =
           " " * indentationLevel + line
+
         val indentPieces = (_: Iterable[String]).map(indent(2))
+
         def joinPiecesOnSeparateLines(pieces: Iterable[String]) =
           String.join("\n", pieces.asJava)
+
         def yamlForSubpieces(yamlForSubpiece: PositionTree => Iterable[String], pieces: Iterable[PositionTree]): Iterable[String] =
           pieces.flatMap(yamlForSubpiece andThen indentPieces)
 
@@ -251,6 +264,11 @@ object FileProcessor {
 
     val yaml = yamlFrom(positionTreeCoveringEntireSource)
 
-    scala.reflect.io.File(pathOfOutputFileForYamlResult).writeAll(yaml)
+    for {
+      writer <- managed(new FileWriter(pathOfOutputFileForYamlResult))
+    } {
+      writer.write(yaml)
+      writer.flush()
+    }
   }
 }
