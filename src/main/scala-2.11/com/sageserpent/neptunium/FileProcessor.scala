@@ -1,4 +1,4 @@
-package com.sageSerpent.neptunium
+package com.sageserpent.neptunium
 
 
 import java.nio.file.Path
