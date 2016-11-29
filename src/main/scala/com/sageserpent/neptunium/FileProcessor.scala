@@ -54,7 +54,7 @@ object FileProcessor {
 
     case class PositionTree(position: Position, children: Seq[PositionTree], interestingTreeData: Option[InterestingTreeData]) {
       require(position.isOpaqueRange)
-      require(children.sliding(2).filter(2 == _.size).forall { case Seq(predecessor, successor) => predecessor.position.precedes(successor.position) })
+      require(children.isEmpty || (children zip children.tail forall { case (predecessor, successor) => predecessor.position.precedes(successor.position) }))
 
       def transform(transformer: PositionTree => PositionTree): PositionTree = {
         val transformedChildren = children.map(_.transform(transformer))
@@ -109,7 +109,7 @@ object FileProcessor {
 
     val adjustChildPositionsToCoverTheSourceContiguously: PositionTree => PositionTree = {
       case positionTree@PositionTree(position, children, _) if children.nonEmpty =>
-        val pairsOfPositionTreeAndOnePastItsEndAfterAdjustment = children.sliding(2).filter(2 == _.size).map { case Seq(predecessor, successor) => predecessor -> successor.position.pos.start }
+        val pairsOfPositionTreeAndOnePastItsEndAfterAdjustment = children zip children.tail map { case (predecessor, successor) => predecessor -> successor.position.pos.start }
         val adjustedPositionTrees = pairsOfPositionTreeAndOnePastItsEndAfterAdjustment.map { case (positionTree, onePastTheEndAfterAdjustment) => positionTree.copy(position = positionTree.position.withEnd(onePastTheEndAfterAdjustment)) }
         val adjustedChildren = adjustedPositionTrees.toList :+ children.last
         positionTree.copy(children = adjustedChildren)
