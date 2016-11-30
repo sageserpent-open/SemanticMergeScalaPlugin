@@ -117,10 +117,10 @@ object FileProcessor {
         rootLevelPositionTree
       } else {
         import rootLevelPositionTree.children
-        val pairsOfPositionTreeAndOnePastItsEndAfterAdjustment = children zip children.tail map { case (predecessor, successor) => predecessor -> successor.position.pos.start }
-        val adjustedPositionTrees = pairsOfPositionTreeAndOnePastItsEndAfterAdjustment.map { case (positionTree, onePastTheEndAfterAdjustment) => positionTree.copy(position = positionTree.position.withEnd(onePastTheEndAfterAdjustment)) }
-        val adjustedChildren = adjustedPositionTrees.toList :+ children.last
-        rootLevelPositionTree.copy(children = adjustedChildren)
+        val childPositionTreesWithInterspersedFillers = (children zip children.tail flatMap {
+          case (predecessor, successor) => Seq(predecessor, PositionTree(predecessor.position.pos.withStart(predecessor.position.pos.end).withEnd(successor.position.pos.start), Seq.empty, None))
+        }) :+ children.last
+        rootLevelPositionTree.copy(children = childPositionTreesWithInterspersedFillers)
       }
 
     val positionTreeWithInternalAdjustments = squashedPositionTree.transform(adjustChildPositionsToCoverTheSourceContiguously)
