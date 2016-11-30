@@ -56,6 +56,8 @@ object FileProcessor {
       require(position.isOpaqueRange)
       require(children.isEmpty || (children zip children.tail forall { case (predecessor, successor) => predecessor.position.precedes(successor.position) }))
 
+      def isLeaf = children.isEmpty
+
       def transform(transformer: PositionTree => PositionTree): PositionTree = {
         val transformedChildren = children.map(_.transform(transformer))
         transformer(this.copy(children = transformedChildren))
@@ -96,14 +98,17 @@ object FileProcessor {
 
     val positionTree = positionTreeBuilder.positionTreeQueue.head
 
-    val squashTreePreservingInterestingBits: PositionTree => PositionTree = {
-      case positionTree@PositionTree(position, children, _) if children.nonEmpty =>
-        positionTree.copy(children = children flatMap {
-          case interestingPositionTree@PositionTree(_, _, Some(_)) => Seq(interestingPositionTree)
-          case PositionTree(_, children, None) => children
+    def squashTreePreservingInterestingBits(rootLevelPositionTree: PositionTree): PositionTree =
+      if (rootLevelPositionTree.isLeaf) {
+        rootLevelPositionTree
+      } else {
+        val squashedRootLevelPositionTree = rootLevelPositionTree.copy(children = rootLevelPositionTree.children flatMap {
+          case interestingChildPositionTree@PositionTree(_, _, Some(_)) => Seq(interestingChildPositionTree)
+          case PositionTree(_, grandChildrenOfRootLevelPositionTree, None) => grandChildrenOfRootLevelPositionTree
         })
-      case positionTree => positionTree
-    }
+        assert(squashedRootLevelPositionTree.children.forall(_.interestingTreeData.isDefined))
+        squashedRootLevelPositionTree
+      }
 
     val squashedPositionTree = positionTree.transform(squashTreePreservingInterestingBits)
 
