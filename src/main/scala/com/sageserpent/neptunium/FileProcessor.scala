@@ -1,9 +1,10 @@
 package com.sageserpent.neptunium
 
 
-import java.io.{FileOutputStream, FileWriter, OutputStreamWriter}
+import java.io.FileWriter
 import java.nio.file.Path
 
+import com.sageserpent.americium.seqEnrichment._
 import org.log4s._
 import resource._
 
@@ -14,8 +15,6 @@ import scala.reflect.io.PlainFile
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.AbstractReporter
-
-import com.sageserpent.americium.seqEnrichment._
 
 
 object FileProcessor {
@@ -50,8 +49,6 @@ object FileProcessor {
     val overallTree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
     val parsingErrorsDetected = reporter.hasErrors
 
-    val sourceText = String.copyValueOf(overallTree.pos.source.content)
-
     case class InterestingTreeData(typeName: String, name: String)
 
     case class PositionTree(position: Position, children: Seq[PositionTree], interestingTreeData: Option[InterestingTreeData]) {
@@ -78,13 +75,13 @@ object FileProcessor {
         if (tree.pos.isOpaqueRange) {
           val interestingTreeData =
             PartialFunction.condOpt(tree) {
-              case presentationCompiler.DefDef(mods, name, tparams, vparamss, tpt, rhs) =>
+              case presentationCompiler.DefDef(_, name, _, _, _, _) =>
                 InterestingTreeData("Def", name.toString)
-              case presentationCompiler.ClassDef(mods, name, tparams, impl) =>
+              case presentationCompiler.ClassDef(_, name, _, _) =>
                 InterestingTreeData("Class", name.toString)
-              case presentationCompiler.ModuleDef(mods, name, impl) =>
+              case presentationCompiler.ModuleDef(_, name, _) =>
                 InterestingTreeData("Module", name.toString)
-              case presentationCompiler.PackageDef(pid, stats) =>
+              case presentationCompiler.PackageDef(pid, _) =>
                 InterestingTreeData("Package", pid.toString)
             }
 
@@ -92,7 +89,7 @@ object FileProcessor {
 
           positionTreeQueue = emptyPositionTreeQueue
           super.traverse(tree)
-          positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith(((lhs, rhs) => lhs.position.precedes(rhs.position))), interestingTreeData))
+          positionTreeQueue = stackedPositionTreeQueue.enqueue(PositionTree(tree.pos, positionTreeQueue.sortWith((lhs, rhs) => lhs.position.precedes(rhs.position)), interestingTreeData))
         }
         else super.traverse(tree)
       }
@@ -144,7 +141,7 @@ object FileProcessor {
     val onePastEndOfSource = source.length
 
     val fragmentToPadOutFromStartOfSource = positionTreeWithInternalAdjustments match {
-      case PositionTree(position, children, _) if children.nonEmpty =>
+      case PositionTree(_, children, _) if children.nonEmpty =>
         val startOfPositionTree = children.head.position.start
         if (startOfPositionTree > startOfSource)
           Some(PositionTree(Position.range(source, startOfSource, startOfSource, startOfPositionTree), Seq.empty, None))
@@ -154,7 +151,7 @@ object FileProcessor {
     }
 
     val fragmentToPadOutToEndOfSource = positionTreeWithInternalAdjustments match {
-      case PositionTree(position, children, _) if children.nonEmpty =>
+      case PositionTree(_, children, _) if children.nonEmpty =>
         val onePastEndOfPositionTree = children.last.position.end
         if (onePastEndOfPositionTree < onePastEndOfSource)
           Some(PositionTree(Position.range(source, onePastEndOfPositionTree, onePastEndOfPositionTree, onePastEndOfSource), Seq.empty, None))
@@ -198,7 +195,7 @@ object FileProcessor {
           // so we have to decrement the end position which is really one past
           // the end ; 'Position' models a [)-interval (closed, open).
           val (startLine, startColumn) = lineAndColumnFor(position, _.start)
-          val (endLine, endColumn) = lineAndColumnFor(position, (_.end - 1))
+          val (endLine, endColumn) = lineAndColumnFor(position, _.end - 1)
           s"{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}"
         }
 
