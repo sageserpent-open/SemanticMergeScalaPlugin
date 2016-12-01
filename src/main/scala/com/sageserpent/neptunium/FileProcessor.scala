@@ -15,6 +15,8 @@ import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.AbstractReporter
 
+import com.sageserpent.americium.seqEnrichment._
+
 
 object FileProcessor {
   private[this] val logger = getLogger
@@ -58,6 +60,10 @@ object FileProcessor {
 
       def isLeaf = children.isEmpty
 
+      def isInteresting = interestingTreeData.isDefined
+
+      lazy val hasInterestingSubtrees: Boolean = isInteresting || children.exists(_.hasInterestingSubtrees)
+
       def transform(transformer: PositionTree => PositionTree): PositionTree = {
         val transformedChildren = children.map(_.transform(transformer))
         transformer(this.copy(children = transformedChildren))
@@ -98,19 +104,25 @@ object FileProcessor {
 
     val positionTree = positionTreeBuilder.positionTreeQueue.head
 
-    def squashTreePreservingInterestingBits(rootLevelPositionTree: PositionTree): PositionTree =
-      if (rootLevelPositionTree.isLeaf) {
-        rootLevelPositionTree
-      } else {
-        val squashedRootLevelPositionTree = rootLevelPositionTree.copy(children = rootLevelPositionTree.children flatMap {
-          case interestingChildPositionTree@PositionTree(_, _, Some(_)) => Seq(interestingChildPositionTree)
-          case PositionTree(_, grandChildrenOfRootLevelPositionTree, None) => grandChildrenOfRootLevelPositionTree
-        })
-        assert(squashedRootLevelPositionTree.children.forall(_.interestingTreeData.isDefined))
-        squashedRootLevelPositionTree
-      }
+    def simplifyTreePreservingInterestingBits(rootLevelPositionTree: PositionTree): PositionTree = {
+      if (rootLevelPositionTree.isLeaf) rootLevelPositionTree else {
+        val childTreesWithoutBoringOutliers = rootLevelPositionTree.children.dropWhile(!_.hasInterestingSubtrees).reverse.dropWhile(!_.hasInterestingSubtrees).reverse
 
-    val squashedPositionTree = positionTree.transform(squashTreePreservingInterestingBits)
+        val simplifiedChildTrees =
+          childTreesWithoutBoringOutliers groupWhile { case (predecessor, successor) => !(predecessor.isInteresting || successor.isInteresting) } map {
+            case Seq(singleton) => singleton
+            case groupOfBoringTrees =>
+              assert(groupOfBoringTrees.forall(!_.isInteresting))
+              val fusedPosition = groupOfBoringTrees.head.position.pos.withEnd(groupOfBoringTrees.last.position.pos.end)
+              val mergedGrandchildTrees = groupOfBoringTrees.flatMap(_.children)
+              PositionTree(fusedPosition, mergedGrandchildTrees, None)
+          }
+        val simplifiedTree = rootLevelPositionTree.copy(children = if (simplifiedChildTrees.exists(_.hasInterestingSubtrees)) simplifiedChildTrees else Seq.empty)
+        simplifiedTree
+      }
+    }
+
+    val squashedPositionTree = positionTree.transform(simplifyTreePreservingInterestingBits)
 
     def adjustChildPositionsToCoverTheSourceContiguously(rootLevelPositionTree: PositionTree) =
       if (rootLevelPositionTree.isLeaf) {
