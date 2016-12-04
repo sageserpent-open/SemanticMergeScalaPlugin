@@ -78,9 +78,9 @@ OK, having griped about `Main`, what of the `FileProcessor`?
 
 `FileProcessor` reads a Scala file and writes out the position tree description as YAML. It does this quite distinctly from the pipeline in `Main` - the latter is purely about freighting from standard input to standard output, there are no side branches in the pipeline to read the Scala files and write the description files.
 
-It executes the Scala presentation compiler on the Scala input, building up an abstract syntax tree to which an instance of `PositionTreeBuilder` is applied internally as a visitor object.
+It executes the Scala presentation compiler on the Scala input, building up an abstract syntax tree to which an instance of `PositionTreeBuilder` is applied as a visitor object.
 
-The visitor then yields a new tree, distinct from the compiler's internal abstract syntax tree; this is the position tree - a `Position` is an abstraction from the presentation compiler library; it models a chunk of text within the Scala source, could be a caret position or could be a selection of several adjacent characters - there are other variations on this theme too. The plugin is only really interested in the multicharacter selection case, although caret-style positions are tolerated.
+The visitor then yields a new tree, distinct from the compiler's own abstract syntax tree; this is the position tree - a `Position` is an abstraction from the presentation compiler library; it models a chunk of text within the Scala source, could be a caret position or could be a selection of several adjacent characters - there are other variations on this theme too. The plugin is only really interested in the multicharacter selection case, although caret-style positions are tolerated.
 
 This position tree should correspond roughly to the syntactic structure of the Scala code being compiled. By roughly, I mean that it can leave out the fine detail and just report on the big picture items such as classes and methods. However, the plugin has to ensure that the positions on the tree completely cover the entire source file - no gaps are permitted.
 
