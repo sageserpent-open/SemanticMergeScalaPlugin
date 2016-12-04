@@ -25,8 +25,10 @@ Specifically for this plugin, locate the file `externalparsers.conf` in your app
 
 Edit it to point to `neptunium.cmd`, like this:-
 
-`.sc=C:\<blah>\target\neptunium.cmd
-.scala=C:\<blah>\target\neptunium.cmd`
+~~~~
+.sc=C:\<blah>\target\neptunium.cmd
+.scala=C:\<blah>\target\neptunium.cmd
+~~~~
 
 Restart Plastic SCM and / or Semantic Merge and your Scala files should work with the syntax / structure-aware diff and merge functionality. Awesome.
  
