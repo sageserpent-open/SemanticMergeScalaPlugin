@@ -7,7 +7,7 @@ A plugin that integrates with:-
 
 It adds support for syntax-aware structured merging of **Scala** code.
 
-Currently, only a Windows build is supported - it could easily be generalised to run on Unix/OSX, but that as per demand - please fork this repository and raise a pull request if you want to do this yourself, your contributions would be very welcome.
+Currently, only a Windows build is supported - it could easily be generalised to run on Unix/OSX, but that is as per demand - please fork this repository and raise a pull request if you want to do this yourself, your contributions would be very welcome.
 
 It is MIT licensed - although the products mentioned above have their own licenses completely independent of this plugin.
 
@@ -25,8 +25,10 @@ Specifically for this plugin, locate the file `externalparsers.conf` in your app
 
 Edit it to point to `neptunium.cmd`, like this:-
 
-`.sc=C:\<blah>\target\neptunium.cmd
-.scala=C:\<blah>\target\neptunium.cmd`
+~~~~
+.sc=C:\<blah>\target\neptunium.cmd
+.scala=C:\<blah>\target\neptunium.cmd
+~~~~
 
 Restart Plastic SCM and / or Semantic Merge and your Scala files should work with the syntax / structure-aware diff and merge functionality. Awesome.
  
