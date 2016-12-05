@@ -156,18 +156,18 @@ object FileProcessor {
       } else {
         import rootLevelPositionTree.children
         val adjustedPositionTrees = children zip children.tail map { case (predecessor, successor: PositionTree) =>
+          def adjustSuccessor(token: String) = {
+            source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString.lastIndexOf(token) match {
+              case -1 => successor
+              case startOfSuccessor => successor.copy(position = successor.position.withStart(startOfSuccessor))
+            }
+          }
+
           successor match {
             case PositionTree(_, _, Some(DefTreeData(_))) =>
-              source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString.lastIndexOf("def") match {
-                case -1 => successor
-                case startOfSuccessor => successor.copy(position = successor.position.withStart(startOfSuccessor))
-              }
+              adjustSuccessor("def")
             case PositionTree(_, _, Some(ClassTreeData(_))) =>
-              source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString.lastIndexOf("class") match {
-                case -1 => successor
-                case startOfSuccessor => successor.copy(position = successor.position.withStart(startOfSuccessor))
-              }
-
+              adjustSuccessor("class")
             case _ => successor
           }
         }
