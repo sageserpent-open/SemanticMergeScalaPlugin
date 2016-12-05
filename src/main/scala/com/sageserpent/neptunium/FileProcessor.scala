@@ -59,6 +59,8 @@ object FileProcessor {
 
       def isInteresting = interestingTreeData.isDefined
 
+      def hasOnlyOneChildTree = 1 == children.size
+
       lazy val hasInterestingSubtrees: Boolean = isInteresting || children.exists(_.hasInterestingSubtrees)
 
       def transform(transformer: PositionTree => PositionTree): PositionTree = {
@@ -119,7 +121,14 @@ object FileProcessor {
       }
     }
 
-    val squashedPositionTree = positionTree.transform(simplifyTreePreservingInterestingBits)
+    def squashTree(rootLevelPositionTree: PositionTree): PositionTree = {
+      if (rootLevelPositionTree.isLeaf) rootLevelPositionTree else {
+        val onlyChildTree = rootLevelPositionTree.children.head
+        if (rootLevelPositionTree.hasOnlyOneChildTree && !onlyChildTree.isInteresting) {
+          rootLevelPositionTree.copy(children = onlyChildTree.children)
+        } else rootLevelPositionTree
+      }
+    }
 
     def adjustChildPositionsToCoverTheSourceContiguously(rootLevelPositionTree: PositionTree) =
       if (rootLevelPositionTree.isLeaf) {
@@ -132,7 +141,7 @@ object FileProcessor {
         rootLevelPositionTree.copy(children = adjustedChildren)
       }
 
-    val positionTreeWithInternalAdjustments = squashedPositionTree.transform(adjustChildPositionsToCoverTheSourceContiguously)
+    val positionTreeWithInternalAdjustments = positionTree.transform(simplifyTreePreservingInterestingBits _ andThen squashTree andThen adjustChildPositionsToCoverTheSourceContiguously)
 
 
     val source = overallTree.pos.source
