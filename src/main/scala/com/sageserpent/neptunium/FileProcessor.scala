@@ -130,21 +130,44 @@ object FileProcessor {
       }
     }
 
+    val source = overallTree.pos.source
+
+    def absorbMissingStartOfDeclarations(rootLevelPositionTree: PositionTree) =
+      if (rootLevelPositionTree.isLeaf) {
+        rootLevelPositionTree
+      } else {
+        import rootLevelPositionTree.children
+        val adjustedPositionTrees = children zip children.tail map { case (predecessor, successor: PositionTree) =>
+          successor match {
+            case PositionTree(_, _, Some(InterestingTreeData("def", _))) =>
+              source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString.lastIndexOf("def") match {
+                case -1 => successor
+                case startOfSuccessor => successor.copy(position = successor.position.withStart(startOfSuccessor))
+              }
+            case PositionTree(_, _, Some(InterestingTreeData("class", _))) =>
+              source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString.lastIndexOf("class") match {
+                case -1 => successor
+                case startOfSuccessor => successor.copy(position = successor.position.withStart(startOfSuccessor))
+              }
+
+            case _ => successor
+          }
+        }
+        val adjustedChildren = children.head +: adjustedPositionTrees.toList
+        rootLevelPositionTree.copy(children = adjustedChildren)
+      }
+
     def adjustChildPositionsToCoverTheSourceContiguously(rootLevelPositionTree: PositionTree) =
       if (rootLevelPositionTree.isLeaf) {
         rootLevelPositionTree
       } else {
         import rootLevelPositionTree.children
-        val pairsOfPositionTreeAndOnePastItsEndAfterAdjustment = children zip children.tail map { case (predecessor, successor) => predecessor -> successor.position.pos.start }
-        val adjustedPositionTrees = pairsOfPositionTreeAndOnePastItsEndAfterAdjustment.map { case (positionTree, onePastTheEndAfterAdjustment) => positionTree.copy(position = positionTree.position.withEnd(onePastTheEndAfterAdjustment)) }
+        val adjustedPositionTrees = children zip children.tail map { case (predecessor, successor) => predecessor.copy(position = predecessor.position.withEnd(successor.position.pos.start)) }
         val adjustedChildren = adjustedPositionTrees.toList :+ children.last
         rootLevelPositionTree.copy(children = adjustedChildren)
       }
 
-    val positionTreeWithInternalAdjustments = positionTree.transform(simplifyTreePreservingInterestingBits _ andThen squashTree andThen adjustChildPositionsToCoverTheSourceContiguously)
-
-
-    val source = overallTree.pos.source
+    val positionTreeWithInternalAdjustments = positionTree.transform(simplifyTreePreservingInterestingBits _ andThen squashTree andThen absorbMissingStartOfDeclarations andThen adjustChildPositionsToCoverTheSourceContiguously)
 
     val startOfSource = 0
     val onePastEndOfSource = source.length
