@@ -49,7 +49,25 @@ object FileProcessor {
     val overallTree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
     val parsingErrorsDetected = reporter.hasErrors
 
-    case class InterestingTreeData(typeName: String, name: String)
+    abstract class InterestingTreeData(val name: String) {
+      val typeName: String
+    }
+
+    case class DefTreeData(override val name: String) extends InterestingTreeData(name) {
+      override val typeName = "def"
+    }
+
+    case class ClassTreeData(override val name: String) extends InterestingTreeData(name) {
+      override val typeName = "class"
+    }
+
+    case class ModuleTreeData(override val name: String) extends InterestingTreeData(name) {
+      override val typeName = "module"
+    }
+
+    case class PackageTreeData(override val name: String) extends InterestingTreeData(name) {
+      override val typeName = "package"
+    }
 
     case class PositionTree(position: Position, children: Seq[PositionTree], interestingTreeData: Option[InterestingTreeData]) {
       require(position.isOpaqueRange)
@@ -78,13 +96,13 @@ object FileProcessor {
           val interestingTreeData =
             PartialFunction.condOpt(tree) {
               case presentationCompiler.DefDef(_, name, _, _, _, _) =>
-                InterestingTreeData("Def", name.toString)
+                DefTreeData(name.toString)
               case presentationCompiler.ClassDef(_, name, _, _) =>
-                InterestingTreeData("Class", name.toString)
+                ClassTreeData(name.toString)
               case presentationCompiler.ModuleDef(_, name, _) =>
-                InterestingTreeData("Module", name.toString)
+                ModuleTreeData(name.toString)
               case presentationCompiler.PackageDef(pid, _) =>
-                InterestingTreeData("Package", pid.toString)
+                PackageTreeData(pid.toString)
             }
 
           val stackedPositionTreeQueue = positionTreeQueue
@@ -139,12 +157,12 @@ object FileProcessor {
         import rootLevelPositionTree.children
         val adjustedPositionTrees = children zip children.tail map { case (predecessor, successor: PositionTree) =>
           successor match {
-            case PositionTree(_, _, Some(InterestingTreeData("def", _))) =>
+            case PositionTree(_, _, Some(DefTreeData(_))) =>
               source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString.lastIndexOf("def") match {
                 case -1 => successor
                 case startOfSuccessor => successor.copy(position = successor.position.withStart(startOfSuccessor))
               }
-            case PositionTree(_, _, Some(InterestingTreeData("class", _))) =>
+            case PositionTree(_, _, Some(ClassTreeData(_))) =>
               source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString.lastIndexOf("class") match {
                 case -1 => successor
                 case startOfSuccessor => successor.copy(position = successor.position.withStart(startOfSuccessor))
@@ -250,7 +268,9 @@ object FileProcessor {
         def yamlForSubpieces(yamlForSubpiece: PositionTree => Iterable[String], pieces: Iterable[PositionTree]): Iterable[String] =
           pieces.flatMap(yamlForSubpiece andThen indentPieces)
 
-        val fallbackForLackOfInterestingTreeData = InterestingTreeData("Code", "")
+        def decompose(interestingTreeData: Option[InterestingTreeData]) = {
+          interestingTreeData.fold("code" -> "")(interestingTreeDataPayload => interestingTreeDataPayload.typeName -> interestingTreeDataPayload.name)
+        }
 
         def yamlForSection(section: PositionTree): Iterable[String] = {
           def yamlForContainer(position: Position, children: Iterable[PositionTree], interestingTreeData: Option[InterestingTreeData]): Iterable[String] = {
@@ -259,7 +279,7 @@ object FileProcessor {
             val onePastEndOfLastChild = children.last.position.pos.end
             val headerSpan = position.withEnd(startOfFirstChild)
             val footerSpan = position.withStart(onePastEndOfLastChild)
-            val InterestingTreeData(typeName, name) = interestingTreeData.getOrElse(fallbackForLackOfInterestingTreeData)
+            val (typeName, name) = decompose(interestingTreeData)
             Iterable(s"- type : $typeName",
               s"  name : $name",
               s"  locationSpan : ${yamlForLineSpan(position)}",
@@ -272,7 +292,7 @@ object FileProcessor {
           }
 
           def yamlForTerminal(terminalPosition: Position, interestingTreeData: Option[InterestingTreeData]): Iterable[String] = {
-            val InterestingTreeData(typeName, name) = interestingTreeData.getOrElse(fallbackForLackOfInterestingTreeData)
+            val (typeName, name) = decompose(interestingTreeData)
             Iterable(s"- type : $typeName",
               s"  name : $name",
               s"  locationSpan : ${yamlForLineSpan(terminalPosition)}",
