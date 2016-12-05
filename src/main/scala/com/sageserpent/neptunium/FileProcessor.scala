@@ -16,6 +16,8 @@ import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.AbstractReporter
 
+import scala.util.matching._
+
 
 object FileProcessor {
   private[this] val logger = getLogger
@@ -156,18 +158,19 @@ object FileProcessor {
       } else {
         import rootLevelPositionTree.children
         val adjustedPositionTrees = children zip children.tail map { case (predecessor, successor: PositionTree) =>
-          def adjustSuccessor(token: String) = {
-            source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString.lastIndexOf(token) match {
-              case -1 => successor
-              case startOfSuccessor => successor.copy(position = successor.position.withStart(startOfSuccessor))
+          def adjustSuccessor(regex: Regex) = {
+            val slice = source.content.slice(predecessor.position.pos.end, successor.position.pos.start).toString
+            regex.findFirstMatchIn(slice) match {
+              case Some(hit) => successor.copy(position = successor.position.withStart(hit.start))
+              case None => successor
             }
           }
 
           successor match {
             case PositionTree(_, _, Some(DefTreeData(_))) =>
-              adjustSuccessor("def")
+              adjustSuccessor("""\s*def\s*$""".r)
             case PositionTree(_, _, Some(ClassTreeData(_))) =>
-              adjustSuccessor("class")
+              adjustSuccessor("""\s*((abstract|case)s*+)?class\s*$""".r)
             case _ => successor
           }
         }
