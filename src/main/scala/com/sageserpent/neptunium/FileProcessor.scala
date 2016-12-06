@@ -48,7 +48,7 @@ object FileProcessor {
 
     val reporter = new CapturingReporter(settings)
 
-    val sourceReader = new SourceReader(Charset.forName("UTF-8").newDecoder(), reporter) // Need to do this to handle the likes of ScalaZ with its funky lambda characters. Hmm.
+    val sourceReader = new SourceReader(Charset.forName("iso-8859-1").newDecoder(), reporter) // Need to do this to handle the likes of ScalaZ with its funky lambda characters. Hmm.
 
     val presentationCompiler = new Global(settings, reporter)
     val overallTree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(pathOfInputFile, sourceReader.read(sourceFile)))
