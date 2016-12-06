@@ -38,13 +38,13 @@ Restart Plastic SCM and / or Semantic Merge and your Scala files should work wit
 
 It works, but has rough edges.
 
-It won't trash your Scala files, at least as far as I have verified by manually tested by dog fooding my own Scala projects through it, not just the ones you can see on Github. If it does mess up your files, please feel free to talk to the hand. Or raise a bug report - or fix it yourself!
+From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and usually provides sensible results. There is no guarantee that it won't mangle your Scala files during a merge, and if it does, you are on your own; this plugin doesn't come with guarantees or liability. Having said that, please do report bugs, or better yet, raise a pull request with a fix.
 
 (BTW - *where are the tests?!*)
 
-However, it needs finessing - you'll see this if you look closely at the ends of the highlighted sections in a diff or merge. They tend to overshoot the construct under scrutiny and grab a token or two from the following construct. It doesn't actually matter in practice, but looks unsightly (and gives an unsettling feeling).
+However, it needs finessing - where there is whitespace between sections of code, then the end of one section can overshoot a line break and spill on to the line on which the following section starts - this is quite harmless, but looks a bit strange sometimes.
 
-This is down to the combination of using the Scala presentation compiler to build a tree of positions in the Scala source code being analysed - the abstract syntax tree does not correspond exactly to the source, so the positions don't quite line up. This would be fine in itself, only the diff / merge functionality that this code plugs into needs the see **all** of the source code without gaps. The plugin uses a very sloppy heuristic to plug these gaps, which in turn leads to the overshoot. It can be fixed, but it's not a high priority for me.
+Scalatest tests aren't handled that well either, as they are not function definitions, rather chunks of expression code placed directly in the test class in a DSL - the plugin gets confused by such code. It doesn't break the plugin and it won't mangle your test code, but it looks weird.
 
 Please do fork this repository, have a play, and raise pull requests - collaborators are welcome!
 
@@ -86,10 +86,10 @@ This position tree should correspond roughly to the syntactic structure of the S
 
 So there is a bit of post-processing of the position tree, using the `transform` method to do a functional transformation of the tree structure. I tried to use the ScalaZ rose tree abstraction to do this, but the code got quite messy - so for now, I've stuck with yet another tree data structure. Please feel free to refactor this to reuse an existing third party library that is tested, possibly the ScalaZ one.
 
-The post processing simplifies the tree structure to avoid overwhelming the end user with too much detail, and fills in the gaps in the position tree. When simplifying, the algorithm uses the notion of *interesting* tree nodes to decide on what to preserve and what to fuse together. I have tried approaches where boring tree nodes are simply thrown away, but the current fusion idea seems to give the nicest looking results. That's not to say it couldn't be improved. Take a look through the commit history to see the also-rans.
+The post processing simplifies the tree structure to avoid overwhelming the end user with too much detail, and fills in the gaps in the position tree. When simplifying, the algorithm uses the notion of *interesting* tree nodes to decide on what to preserve and what to fuse together or just discard outright.
 
 Once the position tree has been given the treatment, there is straightforward but long-winded slog via recursive descent that writes out YAML in the manner expected by Plastic SCM / Semantic Merge, with a bit of logic to indent the YAML to make it human-readable.
 
 Be aware that the consumer of the YAML has its own notion of *sections*, *containers* and *terminals* - these can be represented as case-classes in their own right, but it was simpler to go with a homogenous position tree representation and encode directly into YAML, rather than introduce another intermediate tree structure.
 
-Within a YAML container, there is postcondition forced on the plugin by the end consumer that the child sections in a container must all abut with each other to form a single contiguous piece of text without gaps. It is permitted to have a header at the start of the container and a footer at the end, these make up the gaps between the start and end of the parent container and the leading and trailing child sections, respectively. That's the model forced on the plugin and it has to roll with it, regardless of what Scala looks like. Failure to adhere to this will result in a mangled diff or merge - you have been warned!
+Within a YAML container, there is postcondition forced on the plugin by the end consumer that the child sections in a container must all abut with each other to form a single contiguous piece of text without gaps. It is permitted to have a header at the start of the container and a footer at the end, these make up the gaps between the start and end of the parent container and the leading and trailing child sections, respectively. That's the model forced on the plugin and it has to roll with it, regardless of what the Scala grammar looks like. Failure to adhere to this will result in a mangled diff or merge - you have been warned!
