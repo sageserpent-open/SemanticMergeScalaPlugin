@@ -4,18 +4,17 @@
 
 package com.sageserpent.neptunium
 
-import java.io.File
+import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 
+import org.log4s._
 import resource._
 
-import scala.util.{Success, Failure, Try}
+import scala.collection.JavaConversions._
+import scala.util.{Failure, Success, Try}
 import scalaz.concurrent.Task
 import scalaz.stream._
 import scalaz.{-\/, \/-}
-import org.log4s._
-
-import scala.collection.JavaConversions._
 
 object Main extends App {
   private[this] val logger = getLogger
@@ -58,7 +57,9 @@ object Main extends App {
 
         val acknowledgementOfBeingInitialisedBackToSemanticMerge = "READY"
 
-        scala.reflect.io.File(acknowledgementFilePath).writeAll(acknowledgementOfBeingInitialisedBackToSemanticMerge)
+        for (writer <- managed(new FileWriter(acknowledgementFilePath))){
+          writer.write(acknowledgementOfBeingInitialisedBackToSemanticMerge, 0, acknowledgementOfBeingInitialisedBackToSemanticMerge.size)
+        }
 
         val endOfInputSentinelFromSemanticMerge = "end"
 
