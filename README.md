@@ -38,7 +38,9 @@ Restart Plastic SCM and / or Semantic Merge and your Scala files should work wit
 
 It works, but has rough edges.
 
-From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and usually provides sensible results. There is no guarantee that it won't mangle your Scala files during a merge, and if it does, you are on your own; this plugin doesn't come with guarantees or liability. Having said that, please do report bugs, or better yet, raise a pull request with a fix.
+From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and usually provides sensible results. It even copes with a sample of ScalaZ changesets!
+
+However, there is no guarantee that it won't mangle your Scala files during a merge, and if it does, you are on your own; this plugin doesn't come with guarantees or liability. Having said that, please do report bugs, or better yet, raise a pull request with a fix.
 
 (BTW - *where are the tests?!*)
 
