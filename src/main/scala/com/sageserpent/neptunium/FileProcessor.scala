@@ -2,6 +2,7 @@ package com.sageserpent.neptunium
 
 
 import java.io.FileWriter
+import java.nio.charset.Charset
 import java.nio.file.Path
 
 import com.sageserpent.americium.seqEnrichment._
@@ -14,8 +15,8 @@ import scala.reflect.internal.util.{BatchSourceFile, Position}
 import scala.reflect.io.PlainFile
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
+import scala.tools.nsc.io.SourceReader
 import scala.tools.nsc.reporters.AbstractReporter
-
 import scala.util.matching._
 
 
@@ -47,8 +48,10 @@ object FileProcessor {
 
     val reporter = new CapturingReporter(settings)
 
+    val sourceReader = new SourceReader(Charset.forName("UTF-8").newDecoder(), reporter) // Need to do this to handle the likes of ScalaZ with its funky lambda characters. Hmm.
+
     val presentationCompiler = new Global(settings, reporter)
-    val overallTree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(sourceFile))
+    val overallTree: presentationCompiler.Tree = presentationCompiler.parseTree(new BatchSourceFile(pathOfInputFile, sourceReader.read(sourceFile)))
     val parsingErrorsDetected = reporter.hasErrors
 
     abstract class InterestingTreeData(val name: String) {
