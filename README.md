@@ -56,7 +56,7 @@ Please do fork this repository, have a play, and raise pull requests - collabora
 
 OK, that's slightly high-faluting for a project with two source files in it, but let's talk about what is expected of the plugin by Plastic SCM and Semantic Merge, and what provides it.
 
-First off, see here: http://blog.plasticscm.com/2015/09/custom-languages-in-semantic-version.html.
+First off, see here: https://users.semanticmerge.com/documentation/external-parsers/external-parsers-guide.shtml.
 
 The plugin's job is to be a console application that reads pairs of filenames from standard input - the first half of each pair refers to the name of a Scala file that constitutes an input to a diff or merge - could be the left hand, the right hand or the base - we don't care. The plugin does **not** perform the diff, rather it transforms that file into a description of a tree of positions that demarcate interesting constructs in the file. This description is written to the file that is named by the second half of the pair.
 
