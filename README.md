@@ -19,7 +19,7 @@ So, you're a Scala developer if you want to use this plugin, aren't you? You kno
 
 Right, so clone this repository and fire up SBT with the custom task `allInOneCommandScript`. That will generate a file `neptunium.cmd` in the `target` directory of the SBT build. That file is the built plugin.
 
-Next, integrate this into Plastic SCM / Semantic Merge - some background is here: http://codicesoftware.blogspot.com/2015/09/custom-languages-in-semantic-version.html.
+Next, integrate this into Plastic SCM / Semantic Merge - the official documentation is here: https://users.semanticmerge.com/documentation/external-parsers/external-parsers-guide.shtml and an older blog post is here: http://codicesoftware.blogspot.com/2015/09/custom-languages-in-semantic-version.html.
 
 Specifically for this plugin, locate the file `externalparsers.conf` in your appdata directory - eg: `C:\Users\<you>\AppData\Local\plastic4`.
 
@@ -38,7 +38,7 @@ Restart Plastic SCM and / or Semantic Merge and your Scala files should work wit
 
 It works, but has rough edges.
 
-From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and usually provides sensible results. It even copes with a sample of ScalaZ changesets!
+From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and usually provides sensible results - I use it on a regular basis nowadays and have no problems. It even copes with a sample of ScalaZ changesets!
 
 However, there is no guarantee that it won't mangle your Scala files during a merge, and if it does, you are on your own; this plugin doesn't come with guarantees or liability. Having said that, please do report bugs, or better yet, raise a pull request with a fix.
 
