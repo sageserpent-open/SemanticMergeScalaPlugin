@@ -1,7 +1,6 @@
 /**
   * Created by Gerard on 17/05/2015.
   */
-
 package com.sageserpent.neptunium
 
 import java.io.{File, FileWriter}
@@ -19,13 +18,15 @@ import scalaz.{-\/, \/-}
 object Main extends App {
   private[this] val logger = getLogger
 
-  val jarWithNonPossiblyNonStandardExtensionProvidingThisCode = new File(Main.getClass.getProtectionDomain.getCodeSource.getLocation.getPath).toPath
+  val jarWithNonPossiblyNonStandardExtensionProvidingThisCode = new File(
+    Main.getClass.getProtectionDomain.getCodeSource.getLocation.getPath).toPath
 
   def removeJunk(path: Path): Unit = {
     logger.info(s"Removing: $path.")
     Try(path.toFile.delete()) match {
       case Success(true) => logger.info(s"Removed: '$path' successfully.")
-      case Success(false) => logger.error(s"Failed to remove '$path' - no reason given.")
+      case Success(false) =>
+        logger.error(s"Failed to remove '$path' - no reason given.")
       case Failure(error) => logger.error(error)(s"Failed to remove '$path'.")
     }
   }
@@ -38,14 +39,21 @@ object Main extends App {
     val numberOfArgumentsExpected = 2
 
     numberOfArguments match {
-      case _@count if numberOfArgumentsExpected == count =>
+      case _ @count if numberOfArgumentsExpected == count =>
         for {
-          locationOfLibraryJar <- makeManagedResource(temporaryDirectory)(removeJunk)(List.empty)
-          libraryJar <- makeManagedResource(temporaryLibraryJar(locationOfLibraryJar))(removeJunk)(List.empty)
+          locationOfLibraryJar <- makeManagedResource(temporaryDirectory)(
+            removeJunk)(List.empty)
+          libraryJar <- makeManagedResource(
+            temporaryLibraryJar(locationOfLibraryJar))(removeJunk)(List.empty)
         } {
-          new ProcessBuilder(List("java", "-jar", jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString) ++ args :+ libraryJar.toString).inheritIO.start().waitFor()
+          new ProcessBuilder(List(
+            "java",
+            "-jar",
+            jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString) ++ args :+ libraryJar.toString).inheritIO
+            .start()
+            .waitFor()
         }
-      case _@count if 1 + numberOfArgumentsExpected == count =>
+      case _ @count if 1 + numberOfArgumentsExpected == count =>
         val theOnlyModeHandled = "shell"
 
         val mode = args(0)
@@ -59,29 +67,43 @@ object Main extends App {
 
         val acknowledgementOfBeingInitialisedBackToSemanticMerge = "READY"
 
-        for (writer <- managed(new FileWriter(acknowledgementFilePath))){
-          writer.write(acknowledgementOfBeingInitialisedBackToSemanticMerge, 0, acknowledgementOfBeingInitialisedBackToSemanticMerge.length)
+        for (writer <- managed(new FileWriter(acknowledgementFilePath))) {
+          writer.write(
+            acknowledgementOfBeingInitialisedBackToSemanticMerge,
+            0,
+            acknowledgementOfBeingInitialisedBackToSemanticMerge.length)
         }
 
         val endOfInputSentinelFromSemanticMerge = "end"
 
-        val loggingSink = Process.constant((line: String) => Task {
-          logger.info(line)
-        }).toSource
+        val loggingSink = Process
+          .constant((line: String) =>
+            Task {
+              logger.info(line)
+          })
+          .toSource
 
-        val pathsOfFiles = io.linesR(System.in) observe loggingSink takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
+        val pathsOfFiles = io.linesR(System.in) observe loggingSink takeWhile (!endOfInputSentinelFromSemanticMerge
+          .equalsIgnoreCase(_))
 
-        val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(numberOfLinesPerParsingRequest).takeWhile(numberOfLinesPerParsingRequest == _.length)
+        val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles
+          .chunk(numberOfLinesPerParsingRequest)
+          .takeWhile(numberOfLinesPerParsingRequest == _.length)
 
         val libraryPath = new File(args(2)).toPath
 
-        val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, _, pathOfResultFile) => Process eval Task {
-          FileProcessor.discoverStructure(libraryPath)(pathOfFileToBeProcessed, pathOfResultFile)
-        }.attempt
-        } |> process1.lift { case \/-(()) => "OK"
-        case -\/(error) =>
-          logger.error(error)("Caught exception thrown by FileProcessor.")
-          "KO"
+        val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap {
+          case Vector(pathOfFileToBeProcessed, _, pathOfResultFile) =>
+            Process eval Task {
+              FileProcessor.discoverStructure(libraryPath)(
+                pathOfFileToBeProcessed,
+                pathOfResultFile)
+            }.attempt
+        } |> process1.lift {
+          case \/-(()) => "OK"
+          case -\/(error) =>
+            logger.error(error)("Caught exception thrown by FileProcessor.")
+            "KO"
         }
         val endToEndProcessing = statuses to io.stdOutLines
 
@@ -101,7 +123,9 @@ object Main extends App {
   }
 
   private def temporaryLibraryJar(locationOfLibraryJar: Path) = {
-    val libraryJar = Files.copy(jarWithNonPossiblyNonStandardExtensionProvidingThisCode, locationOfLibraryJar.resolve("SemanticMergeScalaPlugin.jar"))
+    val libraryJar = Files.copy(
+      jarWithNonPossiblyNonStandardExtensionProvidingThisCode,
+      locationOfLibraryJar.resolve("SemanticMergeScalaPlugin.jar"))
     libraryJar.toFile.setReadable(true)
     libraryJar.toFile.setWritable(true)
     libraryJar.toFile.setExecutable(true)
