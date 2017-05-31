@@ -30,6 +30,8 @@ object Main extends App {
     }
   }
 
+  private val numberOfLinesPerParsingRequest = 3
+
   {
     val numberOfArguments = args.length
 
@@ -58,7 +60,7 @@ object Main extends App {
         val acknowledgementOfBeingInitialisedBackToSemanticMerge = "READY"
 
         for (writer <- managed(new FileWriter(acknowledgementFilePath))){
-          writer.write(acknowledgementOfBeingInitialisedBackToSemanticMerge, 0, acknowledgementOfBeingInitialisedBackToSemanticMerge.size)
+          writer.write(acknowledgementOfBeingInitialisedBackToSemanticMerge, 0, acknowledgementOfBeingInitialisedBackToSemanticMerge.length)
         }
 
         val endOfInputSentinelFromSemanticMerge = "end"
@@ -69,11 +71,11 @@ object Main extends App {
 
         val pathsOfFiles = io.linesR(System.in) observe loggingSink takeWhile (!endOfInputSentinelFromSemanticMerge.equalsIgnoreCase(_))
 
-        val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(2).takeWhile(2 == _.length)
+        val pairsOfPathOfFileToBeProcessedAndItsResultFile = pathsOfFiles.chunk(numberOfLinesPerParsingRequest).takeWhile(numberOfLinesPerParsingRequest == _.length)
 
         val libraryPath = new File(args(2)).toPath
 
-        val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, pathOfResultFile) => Process eval Task {
+        val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap { case Vector(pathOfFileToBeProcessed, _, pathOfResultFile) => Process eval Task {
           FileProcessor.discoverStructure(libraryPath)(pathOfFileToBeProcessed, pathOfResultFile)
         }.attempt
         } |> process1.lift { case \/-(()) => "OK"

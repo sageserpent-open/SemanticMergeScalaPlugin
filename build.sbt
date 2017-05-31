@@ -35,7 +35,7 @@ lazy val neptunium = (project in file(".")).settings(
     val jarFile = assembly.value
     val stubFile = baseDirectory.value / "neptuniumStub.cmd"
     val allInOneCommandScriptFile = target.value / "neptunium.cmd"
-    IO.append(allInOneCommandScriptFile, IO.readBytes(stubFile))
+    IO.write(allInOneCommandScriptFile, IO.readBytes(stubFile))
     IO.append(allInOneCommandScriptFile, IO.readBytes(jarFile))
     allInOneCommandScriptFile
   }
