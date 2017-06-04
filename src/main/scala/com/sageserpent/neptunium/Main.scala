@@ -93,10 +93,13 @@ object Main extends App {
         val libraryPath = new File(args(2)).toPath
 
         val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap {
-          case Vector(pathOfFileToBeProcessed, _, pathOfResultFile) =>
+          case Vector(pathOfFileToBeProcessed,
+                      charsetOfFileToBeProcessed,
+                      pathOfResultFile) =>
             Process eval Task {
               FileProcessor.discoverStructure(libraryPath)(
                 pathOfFileToBeProcessed,
+                charsetOfFileToBeProcessed,
                 pathOfResultFile)
             }.attempt
         } |> process1.lift {

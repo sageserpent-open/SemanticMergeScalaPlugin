@@ -23,6 +23,7 @@ object FileProcessor {
 
   def discoverStructure(jarProvidingThisCode: Path)(
       pathOfInputFile: String,
+      charsetOfInputFile: String,
       pathOfOutputFileForYamlResult: String) {
     val sourceFile = new PlainFile(pathOfInputFile)
 
@@ -51,7 +52,7 @@ object FileProcessor {
     val reporter = new CapturingReporter(settings)
 
     val sourceReader = new SourceReader(
-      Charset.forName("iso-8859-1").newDecoder(),
+      Charset.forName(charsetOfInputFile).newDecoder(),
       reporter) // Need to do this to handle the likes of ScalaZ with its funky lambda characters. Hmm.
 
     val presentationCompiler = new Global(settings, reporter)
