@@ -1,14 +1,10 @@
-import sbt.IO
-
-val allInOneCommandScript = taskKey[File]("Creates a self-contained Windows command script.")
-
 lazy val neptunium = (project in file(".")).settings(
   mainClass := Some("com.sageserpent.neptunium.Main"),
 
   assemblyJarName in assembly := "neptunium.jar",
 
   name := "Neptunium",
-  version := "1.0",
+  version := "1.1-SNAPSHOT",
 
   scalaVersion := "2.12.4",
 
@@ -29,16 +25,9 @@ lazy val neptunium = (project in file(".")).settings(
 
   libraryDependencies += "com.sageserpent" %% "americium" % "0.1.5",
 
-  resolvers += Resolver.jcenterRepo,
+  libraryDependencies += "io.github.classgraph" % "classgraph" % "4.1.2",
 
-    allInOneCommandScript := {
-    val jarFile = assembly.value
-    val stubFile = baseDirectory.value / "neptuniumStub.cmd"
-    val allInOneCommandScriptFile = target.value / "neptunium.cmd"
-    IO.write(allInOneCommandScriptFile, IO.readBytes(stubFile))
-    IO.append(allInOneCommandScriptFile, IO.readBytes(jarFile))
-    allInOneCommandScriptFile
-  }
+  resolvers += Resolver.jcenterRepo
 )
 
 
