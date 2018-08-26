@@ -2,9 +2,9 @@ package com.sageserpent.neptunium
 
 import java.io.FileWriter
 import java.nio.charset.Charset
-import java.nio.file.Path
 
 import com.sageserpent.americium.seqEnrichment._
+import io.github.classgraph.ClassGraph
 import org.log4s._
 import resource._
 
@@ -21,17 +21,16 @@ import scala.util.matching._
 object FileProcessor {
   private[this] val logger = getLogger
 
-  def discoverStructure(jarProvidingThisCode: Path)(
-      pathOfInputFile: String,
-      charsetOfInputFile: String,
-      pathOfOutputFileForYamlResult: String) {
+  private val classGraph = new ClassGraph
+
+  def discoverStructure(pathOfInputFile: String,
+                        charsetOfInputFile: String,
+                        pathOfOutputFileForYamlResult: String) {
     val sourceFile = new PlainFile(pathOfInputFile)
 
     val settings = new Settings((message: String) => logger.info(message))
 
-    val classPath = jarProvidingThisCode.toString
-
-    settings.bootclasspath.append(classPath) // Voodoo required by the Scala presentation compiler.
+    settings.bootclasspath.append(classGraph.getClasspath) // Voodoo required by the Scala presentation compiler.
 
     class CapturingReporter(val settings: Settings) extends AbstractReporter {
       override def displayPrompt() {}
@@ -243,7 +242,7 @@ object FileProcessor {
     val positionTreeWithInternalAdjustments = positionTree.transform(
       simplifyTreePreservingInterestingBits _ andThen squashTree andThen absorbMissingStartOfDeclarations andThen adjustChildPositionsToCoverTheSourceContiguously)
 
-    val startOfSource = 0
+    val startOfSource      = 0
     val onePastEndOfSource = source.length
 
     val fragmentToPadOutFromStartOfSource =
@@ -297,11 +296,12 @@ object FileProcessor {
 
     val yamlFrom: PositionTree => String = {
       case PositionTree(rootPosition, childrenOfRoot, _) =>
-        def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
+        def lineAndColumnFor(position: Position,
+                             offsetFrom: Position => Int) = {
           val offset = offsetFrom(position)
           if (offset < position.source.length) {
             val zeroRelativeLine = position.source.offsetToLine(offset)
-            val line = 1 + zeroRelativeLine
+            val line             = 1 + zeroRelativeLine
             // Semantic Merge uses one-relative line numbers...
             val offsetOfStartOfLine =
               position.source.lineToOffset(zeroRelativeLine)
@@ -322,7 +322,7 @@ object FileProcessor {
           // so we have to decrement the end position which is really one past
           // the end ; 'Position' models a [)-interval (closed, open).
           val (startLine, startColumn) = lineAndColumnFor(position, _.start)
-          val (endLine, endColumn) = lineAndColumnFor(position, _.end - 1)
+          val (endLine, endColumn)     = lineAndColumnFor(position, _.end - 1)
           s"{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}"
         }
 
@@ -342,28 +342,26 @@ object FileProcessor {
         def joinPiecesOnSeparateLines(pieces: Iterable[String]) =
           String.join("\n", pieces.asJava)
 
-        def yamlForSubpieces(
-            yamlForSubpiece: PositionTree => Iterable[String],
-            pieces: Iterable[PositionTree]): Iterable[String] =
+        def yamlForSubpieces(yamlForSubpiece: PositionTree => Iterable[String],
+                             pieces: Iterable[PositionTree]): Iterable[String] =
           pieces.flatMap(yamlForSubpiece andThen indentPieces)
 
         def decompose(interestingTreeData: Option[InterestingTreeData]) = {
-          interestingTreeData.fold("code" -> "")(interestingTreeDataPayload =>
+          interestingTreeData.fold("code"       -> "")(interestingTreeDataPayload =>
             interestingTreeDataPayload.typeName -> interestingTreeDataPayload.name)
         }
 
         def yamlForSection(section: PositionTree): Iterable[String] = {
-          def yamlForContainer(
-              position: Position,
-              children: Iterable[PositionTree],
-              interestingTreeData: Option[InterestingTreeData])
+          def yamlForContainer(position: Position,
+                               children: Iterable[PositionTree],
+                               interestingTreeData: Option[InterestingTreeData])
             : Iterable[String] = {
             require(children.nonEmpty)
-            val startOfFirstChild = children.head.position.pos.start
+            val startOfFirstChild     = children.head.position.pos.start
             val onePastEndOfLastChild = children.last.position.pos.end
-            val headerSpan = position.withEnd(startOfFirstChild)
-            val footerSpan = position.withStart(onePastEndOfLastChild)
-            val (typeName, name) = decompose(interestingTreeData)
+            val headerSpan            = position.withEnd(startOfFirstChild)
+            val footerSpan            = position.withStart(onePastEndOfLastChild)
+            val (typeName, name)      = decompose(interestingTreeData)
             Iterable(
               s"- type : $typeName",
               s"  name : $name",
@@ -371,9 +369,8 @@ object FileProcessor {
               s"  headerSpan : ${yamlForCharacterSpan(headerSpan)}",
               s"  footerSpan : ${yamlForCharacterSpan(footerSpan)}"
             ) ++ (if (children.nonEmpty)
-                    Iterable("  children :") ++ yamlForSubpieces(
-                      yamlForSection,
-                      children)
+                    Iterable("  children :") ++ yamlForSubpieces(yamlForSection,
+                                                                 children)
                   else
                     Iterable.empty[String])
           }

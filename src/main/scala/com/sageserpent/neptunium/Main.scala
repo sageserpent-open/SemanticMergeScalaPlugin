@@ -3,33 +3,16 @@
   */
 package com.sageserpent.neptunium
 
-import java.io.{File, FileWriter}
-import java.nio.file.{Files, Path}
+import java.io.FileWriter
 
 import org.log4s._
 import resource._
-
-import scala.collection.JavaConversions._
-import scala.util.{Failure, Success, Try}
 import scalaz.concurrent.Task
 import scalaz.stream._
 import scalaz.{-\/, \/-}
 
 object Main extends App {
   private[this] val logger = getLogger
-
-  val jarWithNonPossiblyNonStandardExtensionProvidingThisCode = new File(
-    Main.getClass.getProtectionDomain.getCodeSource.getLocation.getPath).toPath
-
-  def removeJunk(path: Path): Unit = {
-    logger.info(s"Removing: $path.")
-    Try(path.toFile.delete()) match {
-      case Success(true) => logger.info(s"Removed: '$path' successfully.")
-      case Success(false) =>
-        logger.error(s"Failed to remove '$path' - no reason given.")
-      case Failure(error) => logger.error(error)(s"Failed to remove '$path'.")
-    }
-  }
 
   private val numberOfLinesPerParsingRequest = 3
 
@@ -40,20 +23,6 @@ object Main extends App {
 
     numberOfArguments match {
       case _ @count if numberOfArgumentsExpected == count =>
-        for {
-          locationOfLibraryJar <- makeManagedResource(temporaryDirectory)(
-            removeJunk)(List.empty)
-          libraryJar <- makeManagedResource(
-            temporaryLibraryJar(locationOfLibraryJar))(removeJunk)(List.empty)
-        } {
-          new ProcessBuilder(List(
-            "java",
-            "-jar",
-            jarWithNonPossiblyNonStandardExtensionProvidingThisCode.toString) ++ args :+ libraryJar.toString).inheritIO
-            .start()
-            .waitFor()
-        }
-      case _ @count if 1 + numberOfArgumentsExpected == count =>
         val theOnlyModeHandled = "shell"
 
         val mode = args(0)
@@ -90,14 +59,12 @@ object Main extends App {
           .chunk(numberOfLinesPerParsingRequest)
           .takeWhile(numberOfLinesPerParsingRequest == _.length)
 
-        val libraryPath = new File(args(2)).toPath
-
         val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap {
           case Vector(pathOfFileToBeProcessed,
                       charsetOfFileToBeProcessed,
                       pathOfResultFile) =>
             Process eval Task {
-              FileProcessor.discoverStructure(libraryPath)(
+              FileProcessor.discoverStructure(
                 pathOfFileToBeProcessed,
                 charsetOfFileToBeProcessed,
                 pathOfResultFile)
@@ -117,21 +84,5 @@ object Main extends App {
         throw new Error(
           s"ERROR: expected $numberOfArgumentsExpected arguments, got $numberOfArguments.")
     }
-  }
-
-  private def temporaryDirectory = {
-    val tempDirectory = Files.createTempDirectory("SemanticMergeScalaPlugin")
-    tempDirectory.toFile.setWritable(true)
-    tempDirectory
-  }
-
-  private def temporaryLibraryJar(locationOfLibraryJar: Path) = {
-    val libraryJar = Files.copy(
-      jarWithNonPossiblyNonStandardExtensionProvidingThisCode,
-      locationOfLibraryJar.resolve("SemanticMergeScalaPlugin.jar"))
-    libraryJar.toFile.setReadable(true)
-    libraryJar.toFile.setWritable(true)
-    libraryJar.toFile.setExecutable(true)
-    libraryJar
   }
 }
