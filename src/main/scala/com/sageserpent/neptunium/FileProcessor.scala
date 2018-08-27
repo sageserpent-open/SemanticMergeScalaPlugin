@@ -60,27 +60,28 @@ object FileProcessor {
         new BatchSourceFile(pathOfInputFile, sourceReader.read(sourceFile)))
     val parsingErrorsDetected = reporter.hasErrors
 
-    abstract class InterestingTreeData(val name: String) {
+    trait InterestingTreeData {
+      val name: String
       val typeName: String
     }
 
     case class DefTreeData(override val name: String)
-        extends InterestingTreeData(name) {
+        extends InterestingTreeData {
       override val typeName = "def"
     }
 
     case class ClassTreeData(override val name: String)
-        extends InterestingTreeData(name) {
+        extends InterestingTreeData {
       override val typeName = "class"
     }
 
     case class ModuleTreeData(override val name: String)
-        extends InterestingTreeData(name) {
+        extends InterestingTreeData {
       override val typeName = "module"
     }
 
     case class PackageTreeData(override val name: String)
-        extends InterestingTreeData(name) {
+        extends InterestingTreeData {
       override val typeName = "package"
     }
 
