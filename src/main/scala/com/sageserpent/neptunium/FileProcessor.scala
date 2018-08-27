@@ -92,6 +92,8 @@ object FileProcessor {
         case (predecessor, successor) =>
           predecessor.position.precedes(successor.position)
       }))
+      require(
+        children.isEmpty || (position.start <= children.head.position.start && children.last.position.end <= position.end))
 
       def isLeaf = children.isEmpty
 
