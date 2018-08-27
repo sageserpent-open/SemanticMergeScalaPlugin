@@ -27,6 +27,8 @@ lazy val neptunium = (project in file(".")).settings(
 
   libraryDependencies += "io.github.classgraph" % "classgraph" % "4.1.2",
 
+  libraryDependencies += "org.scalameta" %% "scalameta" % "4.0.0-M10",
+
   resolvers += Resolver.jcenterRepo
 )
 
