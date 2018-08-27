@@ -248,54 +248,10 @@ object FileProcessor {
     val startOfSource      = 0
     val onePastEndOfSource = source.length
 
-    val fragmentToPadOutFromStartOfSource =
-      positionTreeWithInternalAdjustments match {
-        case PositionTree(_, children, _) if children.nonEmpty =>
-          val startOfPositionTree = children.head.position.start
-          if (startOfPositionTree > startOfSource)
-            Some(
-              PositionTree(Position.range(source,
-                                          startOfSource,
-                                          startOfSource,
-                                          startOfPositionTree),
-                           Seq.empty,
-                           None))
-          else
-            None
-        case _ => None
-      }
-
-    val fragmentToPadOutToEndOfSource =
-      positionTreeWithInternalAdjustments match {
-        case PositionTree(_, children, _) if children.nonEmpty =>
-          val onePastEndOfPositionTree = children.last.position.end
-          if (onePastEndOfPositionTree < onePastEndOfSource)
-            Some(
-              PositionTree(Position.range(source,
-                                          onePastEndOfPositionTree,
-                                          onePastEndOfPositionTree,
-                                          onePastEndOfSource),
-                           Seq.empty,
-                           None))
-          else
-            None
-        case _ => None
-      }
-
     val positionTreeCoveringEntireSource =
-      fragmentToPadOutFromStartOfSource -> fragmentToPadOutToEndOfSource match {
-        case (Some(fragmentToPadOutFromStartOfSource),
-              Some(fragmentToPadOutToEndOfSource)) =>
-          positionTreeWithInternalAdjustments.copy(
-            children = fragmentToPadOutFromStartOfSource +: positionTreeWithInternalAdjustments.children.toList :+ fragmentToPadOutToEndOfSource)
-        case (Some(fragmentToPadOutFromStartOfSource), None) =>
-          positionTreeWithInternalAdjustments.copy(
-            children = fragmentToPadOutFromStartOfSource +: positionTreeWithInternalAdjustments.children.toList)
-        case (None, Some(fragmentToPadOutToEndOfSource)) =>
-          positionTreeWithInternalAdjustments.copy(
-            children = positionTreeWithInternalAdjustments.children.toList :+ fragmentToPadOutToEndOfSource)
-        case (None, None) => positionTreeWithInternalAdjustments
-      }
+      positionTreeWithInternalAdjustments.copy(
+        position = Position
+          .range(source, startOfSource, startOfSource, onePastEndOfSource))
 
     val yamlFrom: PositionTree => String = {
       case PositionTree(rootPosition, childrenOfRoot, _) =>
