@@ -23,9 +23,7 @@ object FileProcessor {
 
   private val classGraph = new ClassGraph
 
-  def discoverStructure(pathOfInputFile: String,
-                        charsetOfInputFile: String,
-                        pathOfOutputFileForYamlResult: String) {
+  def discoverStructure(pathOfInputFile: String, charsetOfInputFile: String, pathOfOutputFileForYamlResult: String) {
     val sourceFile = new PlainFile(pathOfInputFile)
 
     val settings = new Settings((message: String) => logger.info(message))
@@ -35,9 +33,7 @@ object FileProcessor {
     class CapturingReporter(val settings: Settings) extends AbstractReporter {
       override def displayPrompt() {}
 
-      override def display(pos: Position,
-                           msg: String,
-                           severity: Severity): Unit = {
+      override def display(pos: Position, msg: String, severity: Severity): Unit = {
         severity match {
           case ERROR =>
             capturedMessages += pos -> msg
@@ -50,14 +46,11 @@ object FileProcessor {
 
     val reporter = new CapturingReporter(settings)
 
-    val sourceReader = new SourceReader(
-      Charset.forName(charsetOfInputFile).newDecoder(),
-      reporter) // Need to do this to handle the likes of ScalaZ with its funky lambda characters. Hmm.
+    val sourceReader = new SourceReader(Charset.forName(charsetOfInputFile).newDecoder(), reporter) // Need to do this to handle the likes of ScalaZ with its funky lambda characters. Hmm.
 
     val presentationCompiler = new Global(settings, reporter)
     val overallTree: presentationCompiler.Tree =
-      presentationCompiler.parseTree(
-        new BatchSourceFile(pathOfInputFile, sourceReader.read(sourceFile)))
+      presentationCompiler.parseTree(new BatchSourceFile(pathOfInputFile, sourceReader.read(sourceFile)))
     val parsingErrorsDetected = reporter.hasErrors
 
     trait InterestingTreeData {
@@ -65,36 +58,35 @@ object FileProcessor {
       val typeName: String
     }
 
-    case class DefTreeData(override val name: String)
-        extends InterestingTreeData {
+    case class DefTreeData(override val name: String) extends InterestingTreeData {
       override val typeName = "def"
     }
 
-    case class ClassTreeData(override val name: String)
-        extends InterestingTreeData {
+    case class ClassTreeData(override val name: String) extends InterestingTreeData {
       override val typeName = "class"
     }
 
-    case class ModuleTreeData(override val name: String)
-        extends InterestingTreeData {
+    case class ModuleTreeData(override val name: String) extends InterestingTreeData {
       override val typeName = "module"
     }
 
-    case class PackageTreeData(override val name: String)
-        extends InterestingTreeData {
+    case class PackageTreeData(override val name: String) extends InterestingTreeData {
       override val typeName = "package"
     }
 
-    case class PositionTree(position: Position,
-                            children: Seq[PositionTree],
-                            interestingTreeData: Option[InterestingTreeData]) {
+    case class PositionTree(
+        position: Position,
+        children: Seq[PositionTree],
+        interestingTreeData: Option[InterestingTreeData]
+    ) {
       require(position.isOpaqueRange)
       require(children.isEmpty || (children zip children.tail forall {
         case (predecessor, successor) =>
           predecessor.position.precedes(successor.position)
       }))
       require(
-        children.isEmpty || (position.start <= children.head.position.start && children.last.position.end <= position.end))
+        children.isEmpty || (position.start <= children.head.position.start && children.last.position.end <= position.end)
+      )
 
       def isLeaf = children.isEmpty
 
@@ -135,10 +127,12 @@ object FileProcessor {
           positionTreeQueue = emptyPositionTreeQueue
           super.traverse(tree)
           positionTreeQueue = stackedPositionTreeQueue.enqueue(
-            PositionTree(tree.pos,
-                         positionTreeQueue.sortWith((lhs, rhs) =>
-                           lhs.position.precedes(rhs.position)),
-                         interestingTreeData))
+            PositionTree(
+              tree.pos,
+              positionTreeQueue.sortWith((lhs, rhs) => lhs.position.precedes(rhs.position)),
+              interestingTreeData
+            )
+          )
         } else super.traverse(tree)
       }
     }
@@ -149,8 +143,7 @@ object FileProcessor {
 
     val positionTree = positionTreeBuilder.positionTreeQueue.head
 
-    def simplifyTreePreservingInterestingBits(
-        rootLevelPositionTree: PositionTree): PositionTree = {
+    def simplifyTreePreservingInterestingBits(rootLevelPositionTree: PositionTree): PositionTree = {
       if (rootLevelPositionTree.isLeaf) rootLevelPositionTree
       else {
         val childTreesWithoutBoringOutliers = rootLevelPositionTree.children
@@ -177,7 +170,8 @@ object FileProcessor {
           children =
             if (simplifiedChildTrees.exists(_.hasInterestingSubtrees))
               simplifiedChildTrees
-            else Seq.empty)
+            else Seq.empty
+        )
         simplifiedTree
       }
     }
@@ -203,13 +197,11 @@ object FileProcessor {
           case (predecessor, successor: PositionTree) =>
             def adjustSuccessor(regex: Regex) = {
               val slice = source.content
-                .slice(predecessor.position.pos.end,
-                       successor.position.pos.start)
+                .slice(predecessor.position.pos.end, successor.position.pos.start)
                 .toString
               regex.findFirstMatchIn(slice) match {
                 case Some(hit) =>
-                  successor.copy(
-                    position = successor.position.withStart(hit.start))
+                  successor.copy(position = successor.position.withStart(hit.start))
                 case None => successor
               }
             }
@@ -226,24 +218,22 @@ object FileProcessor {
         rootLevelPositionTree.copy(children = adjustedChildren)
       }
 
-    def adjustChildPositionsToCoverTheSourceContiguously(
-        rootLevelPositionTree: PositionTree) =
+    def adjustChildPositionsToCoverTheSourceContiguously(rootLevelPositionTree: PositionTree) =
       if (rootLevelPositionTree.isLeaf) {
         rootLevelPositionTree
       } else {
         import rootLevelPositionTree.children
         val adjustedPositionTrees = children zip children.tail map {
           case (predecessor, successor) =>
-            predecessor.copy(
-              position =
-                predecessor.position.withEnd(successor.position.pos.start))
+            predecessor.copy(position = predecessor.position.withEnd(successor.position.pos.start))
         }
         val adjustedChildren = adjustedPositionTrees.toList :+ children.last
         rootLevelPositionTree.copy(children = adjustedChildren)
       }
 
     val positionTreeWithInternalAdjustments = positionTree.transform(
-      simplifyTreePreservingInterestingBits _ andThen squashTree andThen absorbMissingStartOfDeclarations andThen adjustChildPositionsToCoverTheSourceContiguously)
+      simplifyTreePreservingInterestingBits _ andThen squashTree andThen absorbMissingStartOfDeclarations andThen adjustChildPositionsToCoverTheSourceContiguously
+    )
 
     val startOfSource      = 0
     val onePastEndOfSource = source.length
@@ -251,12 +241,12 @@ object FileProcessor {
     val positionTreeCoveringEntireSource =
       positionTreeWithInternalAdjustments.copy(
         position = Position
-          .range(source, startOfSource, startOfSource, onePastEndOfSource))
+          .range(source, startOfSource, startOfSource, onePastEndOfSource)
+      )
 
     val yamlFrom: PositionTree => String = {
       case PositionTree(rootPosition, childrenOfRoot, _) =>
-        def lineAndColumnFor(position: Position,
-                             offsetFrom: Position => Int) = {
+        def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
           val offset = offsetFrom(position)
           if (offset < position.source.length) {
             val zeroRelativeLine = position.source.offsetToLine(offset)
@@ -267,9 +257,8 @@ object FileProcessor {
             val column = offset - offsetOfStartOfLine // ... but zero-relative column numbers.
             line -> column
           } else {
-            val zeroRelativeLine = 1 + position.source.offsetToLine(
-              position.source.length - 1)
-            val line = 1 + zeroRelativeLine
+            val zeroRelativeLine = 1 + position.source.offsetToLine(position.source.length - 1)
+            val line             = 1 + zeroRelativeLine
             // Semantic Merge uses one-relative line numbers...
             val column = 0
             line -> column // ... but zero-relative column numbers.
@@ -301,20 +290,24 @@ object FileProcessor {
         def joinPiecesOnSeparateLines(pieces: Iterable[String]) =
           String.join("\n", pieces.asJava)
 
-        def yamlForSubpieces(yamlForSubpiece: PositionTree => Iterable[String],
-                             pieces: Iterable[PositionTree]): Iterable[String] =
+        def yamlForSubpieces(
+            yamlForSubpiece: PositionTree => Iterable[String],
+            pieces: Iterable[PositionTree]
+        ): Iterable[String] =
           pieces.flatMap(yamlForSubpiece andThen indentPieces)
 
         def decompose(interestingTreeData: Option[InterestingTreeData]) = {
-          interestingTreeData.fold("code"       -> "")(interestingTreeDataPayload =>
-            interestingTreeDataPayload.typeName -> interestingTreeDataPayload.name)
+          interestingTreeData.fold("code"                                     -> "")(
+            interestingTreeDataPayload => interestingTreeDataPayload.typeName -> interestingTreeDataPayload.name
+          )
         }
 
         def yamlForSection(section: PositionTree): Iterable[String] = {
-          def yamlForContainer(position: Position,
-                               children: Iterable[PositionTree],
-                               interestingTreeData: Option[InterestingTreeData])
-            : Iterable[String] = {
+          def yamlForContainer(
+              position: Position,
+              children: Iterable[PositionTree],
+              interestingTreeData: Option[InterestingTreeData]
+          ): Iterable[String] = {
             require(children.nonEmpty)
             val startOfFirstChild     = children.head.position.pos.start
             val onePastEndOfLastChild = children.last.position.pos.end
@@ -328,15 +321,15 @@ object FileProcessor {
               s"  headerSpan : ${yamlForCharacterSpan(headerSpan)}",
               s"  footerSpan : ${yamlForCharacterSpan(footerSpan)}"
             ) ++ (if (children.nonEmpty)
-                    Iterable("  children :") ++ yamlForSubpieces(yamlForSection,
-                                                                 children)
+                    Iterable("  children :") ++ yamlForSubpieces(yamlForSection, children)
                   else
                     Iterable.empty[String])
           }
 
-          def yamlForTerminal(terminalPosition: Position,
-                              interestingTreeData: Option[InterestingTreeData])
-            : Iterable[String] = {
+          def yamlForTerminal(
+              terminalPosition: Position,
+              interestingTreeData: Option[InterestingTreeData]
+          ): Iterable[String] = {
             val (typeName, name) = decompose(interestingTreeData)
             Iterable(
               s"- type : $typeName",
@@ -357,8 +350,7 @@ object FileProcessor {
         val yamlForError: ((Position, String)) => Iterable[String] = {
           case ((position: Position), (message: String)) =>
             val (startLine, startColumn) = lineAndColumnFor(position, _.start)
-            Iterable(s"- location: [$startLine,$startColumn]",
-                     s"""  message: "$message"""")
+            Iterable(s"- location: [$startLine,$startColumn]", s"""  message: "$message"""")
         }
 
         val pieces: Iterable[String] = Iterable(
@@ -370,8 +362,7 @@ object FileProcessor {
           s"parsingErrorsDetected : $parsingErrorsDetected"
         ) ++
           (if (childrenOfRoot.nonEmpty)
-             Iterable("children :") ++ yamlForSubpieces(yamlForSection,
-                                                        childrenOfRoot)
+             Iterable("children :") ++ yamlForSubpieces(yamlForSection, childrenOfRoot)
            else
              Iterable.empty[String]) ++
           (if (parsingErrorsDetected)

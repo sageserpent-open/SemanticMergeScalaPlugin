@@ -28,8 +28,7 @@ object Main extends App {
         val mode = args(0)
 
         if (!theOnlyModeHandled.equalsIgnoreCase(mode)) {
-          throw new Error(
-            s"ERROR, expect mode: $theOnlyModeHandled, requested mode was: $mode.")
+          throw new Error(s"ERROR, expect mode: $theOnlyModeHandled, requested mode was: $mode.")
         }
 
         val acknowledgementFilePath = args(1)
@@ -40,16 +39,19 @@ object Main extends App {
           writer.write(
             acknowledgementOfBeingInitialisedBackToSemanticMerge,
             0,
-            acknowledgementOfBeingInitialisedBackToSemanticMerge.length)
+            acknowledgementOfBeingInitialisedBackToSemanticMerge.length
+          )
         }
 
         val endOfInputSentinelFromSemanticMerge = "end"
 
         val loggingSink = Process
-          .constant((line: String) =>
-            Task {
-              logger.info(line)
-          })
+          .constant(
+            (line: String) =>
+              Task {
+                logger.info(line)
+              }
+          )
           .toSource
 
         val pathsOfFiles = io.linesR(System.in) observe loggingSink takeWhile (!endOfInputSentinelFromSemanticMerge
@@ -60,14 +62,9 @@ object Main extends App {
           .takeWhile(numberOfLinesPerParsingRequest == _.length)
 
         val statuses = pairsOfPathOfFileToBeProcessedAndItsResultFile.flatMap {
-          case Vector(pathOfFileToBeProcessed,
-                      charsetOfFileToBeProcessed,
-                      pathOfResultFile) =>
+          case Vector(pathOfFileToBeProcessed, charsetOfFileToBeProcessed, pathOfResultFile) =>
             Process eval Task {
-              FileProcessor.discoverStructure(
-                pathOfFileToBeProcessed,
-                charsetOfFileToBeProcessed,
-                pathOfResultFile)
+              FileProcessor.discoverStructure(pathOfFileToBeProcessed, charsetOfFileToBeProcessed, pathOfResultFile)
             }.attempt
         } |> process1.lift {
           case \/-(()) => "OK"
@@ -81,8 +78,7 @@ object Main extends App {
 
         logger.info("Plugin exiting.")
       case _ =>
-        throw new Error(
-          s"ERROR: expected $numberOfArgumentsExpected arguments, got $numberOfArguments.")
+        throw new Error(s"ERROR: expected $numberOfArgumentsExpected arguments, got $numberOfArguments.")
     }
   }
 }
