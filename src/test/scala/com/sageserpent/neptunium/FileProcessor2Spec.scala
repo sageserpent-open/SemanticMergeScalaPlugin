@@ -1,8 +1,9 @@
-import com.sageserpent.neptunium.FileProcessor2._
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+package com.sageserpent.neptunium
 
-class FileProcessor2Spec extends FlatSpec with Matchers with MockFactory {
+import org.scalatest.{FlatSpec, Matchers}
+import FileProcessor2._
+
+class FileProcessor2Spec extends FlatSpec with Matchers {
   val aFile = null.asInstanceOf[File]
 
   "A file" should "have a type" in {
