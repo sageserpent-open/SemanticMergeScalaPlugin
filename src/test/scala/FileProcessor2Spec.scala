@@ -3,7 +3,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 class FileProcessor2Spec extends FlatSpec with Matchers with MockFactory {
-  val aFile = mock[File]
+  val aFile = null.asInstanceOf[File]
 
   "A file" should "have a type" in {
     "aFile.`type`: String" should compile
@@ -30,7 +30,7 @@ class FileProcessor2Spec extends FlatSpec with Matchers with MockFactory {
     "aFile.parsingError: Seq[ParsingError]" should compile
   }
 
-  val aContainer = mock[Container]
+  val aContainer = null.asInstanceOf[Container]
 
   "A container" should "have a type" in {
     "aContainer.`type`: String" should compile
@@ -56,25 +56,25 @@ class FileProcessor2Spec extends FlatSpec with Matchers with MockFactory {
     "aContainer.children: Seq[Declaration]" should compile
   }
 
-  val aNode = mock[Node]
+  val aTerminal = null.asInstanceOf[Terminal]
 
   "A node" should "have a type" in {
-    "aNode.`type`: String" should compile
+    "aTerminal.`type`: String" should compile
   }
 
   it should "have a name" in {
-    "aNode.name: String" should compile
+    "aTerminal.name: String" should compile
   }
 
   it should "have a locationSpan" in {
-    "aNode.locationSpan: LocationSpan" should compile
+    "aTerminal.locationSpan: LocationSpan" should compile
   }
 
   it should "have a span" in {
-    "aNode.span: Span" should compile
+    "aTerminal.span: Span" should compile
   }
 
-  val aParsingError = mock[ParsingError]
+  val aParsingError = null.asInstanceOf[ParsingError]
 
   "A parsing error" should "have a location " in {
     "aParsingError.location: LineAndOffSet" should compile
