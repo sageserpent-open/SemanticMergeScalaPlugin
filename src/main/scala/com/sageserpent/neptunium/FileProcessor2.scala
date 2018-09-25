@@ -1,5 +1,5 @@
 package com.sageserpent.neptunium
-import io.circe.Encoder
+import io.circe.{Decoder, Encoder}
 
 import scala.meta.parsers.Parsed
 import scala.meta.Source
@@ -92,6 +92,11 @@ object FileProcessor2 {
     implicit val encoder: Encoder[Span] =
       implicitly[Encoder[(ZeroRelativeCharacterIndex, ZeroRelativeCharacterIndex)]].contramap(span =>
         span.start -> span.end)
+
+    implicit val decoder: Decoder[Span] =
+      implicitly[Decoder[(ZeroRelativeCharacterIndex, ZeroRelativeCharacterIndex)]].emap {
+        case (start, end) => Right(Span(start, end))
+      }
   }
 
   case class Span(start: ZeroRelativeCharacterIndex, end: ZeroRelativeCharacterIndex) {
