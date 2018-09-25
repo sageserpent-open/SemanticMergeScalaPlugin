@@ -1,4 +1,6 @@
 package com.sageserpent.neptunium
+import io.circe.Encoder
+
 import scala.meta.parsers.Parsed
 import scala.meta.Source
 
@@ -86,6 +88,10 @@ object FileProcessor2 {
 
   object Span {
     val floatingEmptySpan = Span(0, -1)
+
+    implicit val encoder: Encoder[Span] =
+      implicitly[Encoder[(ZeroRelativeCharacterIndex, ZeroRelativeCharacterIndex)]].contramap(span =>
+        span.start -> span.end)
   }
 
   case class Span(start: ZeroRelativeCharacterIndex, end: ZeroRelativeCharacterIndex) {
