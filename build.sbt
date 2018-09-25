@@ -23,5 +23,6 @@ lazy val neptunium = (project in file(".")).settings(
   libraryDependencies += "io.circe"                 %% "circe-generic"   % "0.10.0-M2",
   libraryDependencies += "org.scalatest"            %% "scalatest"       % "3.0.5" % "test",
   libraryDependencies += "org.scalamock"            %% "scalamock"       % "4.1.0" % "test",
+  libraryDependencies += "org.scalacheck"           %% "scalacheck"      % "1.14.0" % "test",
   resolvers += Resolver.jcenterRepo
 )
