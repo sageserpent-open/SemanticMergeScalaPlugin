@@ -15,7 +15,7 @@ class SpanSpec extends FlatSpec with Matchers {
 
     val reconstitutedTuple = jsonFromSpan.as[(Int, Int)]
 
-    reconstitutedTuple should be(equivalentTuple)
+    reconstitutedTuple should be(Right(equivalentTuple))
   }
 
   it should "be reconstituted from YAML as if it were a plain tuple" in {
@@ -27,6 +27,6 @@ class SpanSpec extends FlatSpec with Matchers {
 
     val reconstitutedSpan = jsonFromTuple.as[Span]
 
-    reconstitutedSpan should be(exampleSpan)
+    reconstitutedSpan should be(Right(exampleSpan))
   }
 }
