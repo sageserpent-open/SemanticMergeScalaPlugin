@@ -4,6 +4,7 @@ import java.io.FileWriter
 import java.nio.charset.Charset
 
 import com.sageserpent.americium.seqEnrichment._
+import com.sageserpent.neptunium.FileProcessor2._
 import io.github.classgraph.ClassGraph
 import org.log4s._
 import resource._
@@ -244,6 +245,104 @@ object FileProcessor {
           .range(source, startOfSource, startOfSource, onePastEndOfSource)
       )
 
+    val fileFrom: PositionTree => File = {
+      case PositionTree(rootPosition, childrenOfRoot, _) =>
+        def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
+          val offset = offsetFrom(position)
+          if (offset < position.source.length) {
+            val zeroRelativeLine = position.source.offsetToLine(offset)
+            val line             = 1 + zeroRelativeLine
+            // Semantic Merge uses one-relative line numbers...
+            val offsetOfStartOfLine =
+              position.source.lineToOffset(zeroRelativeLine)
+            val column = offset - offsetOfStartOfLine // ... but zero-relative column numbers.
+            line -> column
+          } else {
+            val zeroRelativeLine = 1 + position.source.offsetToLine(position.source.length - 1)
+            val line             = 1 + zeroRelativeLine
+            // Semantic Merge uses one-relative line numbers...
+            val column = 0
+            line -> column // ... but zero-relative column numbers.
+          }
+        }
+
+        def spanFrom(position: Position): Span =
+          // Semantic Merge uses []-intervals (closed - closed) for character
+          // spans, so we have to decrement the end position which is really
+          // one past the end; 'Position' models a [)-interval (closed, open).
+          Span(position.start, position.end - 1)
+
+        def locationSpanFrom(position: Position): LocationSpan = {
+          // Semantic Merge uses []-intervals (closed - closed) for line spans,
+          // so we have to decrement the end position which is really one past
+          // the end ; 'Position' models a [)-interval (closed, open).
+          val (startLine, startColumn) = lineAndColumnFor(position, _.start)
+          val (endLine, endColumn)     = lineAndColumnFor(position, _.end - 1)
+          LocationSpan(startLine -> startColumn, endLine -> endColumn)
+        }
+
+        def decompose(interestingTreeData: Option[InterestingTreeData]) = {
+          interestingTreeData.fold("code"                                     -> "")(
+            interestingTreeDataPayload => interestingTreeDataPayload.typeName -> interestingTreeDataPayload.name
+          )
+        }
+
+        def containerFrom(section: PositionTree): Container = {
+          def declarationFrom(section: PositionTree): Declaration = {
+            section match {
+              case PositionTree(position, Seq(), interestingTreeData) =>
+                val (typeName, name) = decompose(interestingTreeData)
+                new Terminal(typeName, name, locationSpanFrom(position), spanFrom(position)) with DeclarationContracts
+                with LineMapping {
+                  override def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex = ???
+                }
+              case _ =>
+                containerFrom(section)
+            }
+          }
+
+          section match {
+            case PositionTree(position, children, interestingTreeData) =>
+              val (headerSpan, footerSpan) = if (children.nonEmpty) {
+                val startOfFirstChild     = children.head.position.pos.start
+                val onePastEndOfLastChild = children.last.position.pos.end
+                spanFrom(position.withEnd(startOfFirstChild)) -> spanFrom(position.withStart(onePastEndOfLastChild))
+              } else {
+                spanFrom(position) -> Span.floatingEmptySpan
+              }
+
+              val (typeName, name) = decompose(interestingTreeData)
+
+              new Container(typeName,
+                            name,
+                            locationSpanFrom(position),
+                            headerSpan,
+                            footerSpan,
+                            children map declarationFrom) with CompoundContracts with DeclarationContracts
+              with LineMapping {
+                override def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex = ???
+              }
+          }
+        }
+
+        val errorFrom: ((Position, String)) => ParsingError = {
+          case (position: Position, message: String) =>
+            ParsingError(lineAndColumnFor(position, _.start), message)
+        }
+
+        new File(
+          "file",
+          pathOfInputFile,
+          locationSpanFrom(rootPosition.pos),
+          Span.floatingEmptySpan,
+          childrenOfRoot map containerFrom,
+          parsingErrorsDetected,
+          if (parsingErrorsDetected) reporter.capturedMessages map errorFrom else Seq.empty
+        ) with CompoundContracts with LineMapping {
+          override def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex = ???
+        }
+    }
+
     val yamlFrom: PositionTree => String = {
       case PositionTree(rootPosition, childrenOfRoot, _) =>
         def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
@@ -348,7 +447,7 @@ object FileProcessor {
         }
 
         val yamlForError: ((Position, String)) => Iterable[String] = {
-          case ((position: Position), (message: String)) =>
+          case (position: Position, message: String) =>
             val (startLine, startColumn) = lineAndColumnFor(position, _.start)
             Iterable(s"- location: [$startLine,$startColumn]", s"""  message: "$message"""")
         }

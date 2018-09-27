@@ -16,19 +16,18 @@ object FileProcessor2 {
     def spanOf(locationSpan: LocationSpan): Span = Span(offsetFrom(locationSpan.start), offsetFrom(locationSpan.end))
   }
 
-  trait Parent {
+  trait Compound {
     def locationSpan: LocationSpan
     def childSpans: Seq[Span]
   }
 
-  trait ParentContracts extends Parent {
+  trait CompoundContracts extends Compound {
     this: LineMapping =>
-    require(!childSpans.isEmpty)
-    require(Span(childSpans.head.start, childSpans.last.end) == spanOf(locationSpan))
-    require(childSpans zip childSpans.tail forall {
+    require(childSpans.isEmpty || Span(childSpans.head.start, childSpans.last.end) == spanOf(locationSpan))
+    require(childSpans.isEmpty || (childSpans zip childSpans.tail forall {
       case (predecessor, successor) =>
         predecessor abuts successor
-    })
+    }))
   }
 
   abstract case class File(
@@ -39,8 +38,8 @@ object FileProcessor2 {
       children: Seq[Container],
       parsingErrorsDetected: Boolean,
       parsingError: Seq[ParsingError]
-  ) extends Parent {
-    this: LineMapping with ParentContracts =>
+  ) extends Compound {
+    this: CompoundContracts with LineMapping =>
     require(Span.floatingEmptySpan == footerSpan || (spanOf(locationSpan) abuts footerSpan))
 
     def childSpans: Seq[Span] = children.map(child => spanOf(child.locationSpan))
@@ -63,16 +62,16 @@ object FileProcessor2 {
       locationSpan: LocationSpan,
       headerSpan: Span,
       footerSpan: Span,
-      children: Seq[Container]
+      children: Seq[Declaration]
   ) extends Declaration
-      with Parent {
-    this: LineMapping with ParentContracts with DeclarationContracts =>
+      with Compound {
+    this: CompoundContracts with DeclarationContracts with LineMapping =>
     def childSpans: Seq[Span] = headerSpan +: children.map(child => spanOf(child.locationSpan)) :+ footerSpan
   }
 
   abstract case class Terminal(`type`: String, name: String, locationSpan: LocationSpan, span: Span)
       extends Declaration {
-    this: LineMapping with DeclarationContracts =>
+    this: DeclarationContracts with LineMapping =>
     require(spanOf(locationSpan) == span)
   }
 
