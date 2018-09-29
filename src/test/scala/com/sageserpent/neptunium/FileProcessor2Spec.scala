@@ -1,9 +1,11 @@
 package com.sageserpent.neptunium
 
+import com.sageserpent.neptunium.FileProcessor2._
 import org.scalatest.{FlatSpec, Matchers}
-import FileProcessor2._
 
 class FileProcessor2Spec extends FlatSpec with Matchers {
+  val lineMapping = null.asInstanceOf[LineMapping]
+  import lineMapping.{Container, File, ParsingError, Terminal}
   val aFile = null.asInstanceOf[File]
 
   "A file" should "have a type" in {
@@ -31,6 +33,12 @@ class FileProcessor2Spec extends FlatSpec with Matchers {
     "aFile.parsingError: Seq[ParsingError]" should compile
   }
 
+  it should "be serialized as JSON" in {
+    """import io.circe.generic.auto._
+      |import io.circe.syntax._
+      |aFile.asJson""".stripMargin should compile
+  }
+
   val aContainer = null.asInstanceOf[Container]
 
   "A container" should "have a type" in {
@@ -54,7 +62,14 @@ class FileProcessor2Spec extends FlatSpec with Matchers {
   }
 
   it should "have optional children" in {
-    "aContainer.children: Seq[Declaration]" should compile
+    """import lineMapping.Declaration
+      |aContainer.children: Seq[Declaration]""".stripMargin should compile
+  }
+
+  it should "be serialized as JSON" in {
+    """import io.circe.generic.auto._
+      |import io.circe.syntax._
+      |aContainer.asJson""".stripMargin should compile
   }
 
   val aTerminal = null.asInstanceOf[Terminal]
@@ -75,6 +90,12 @@ class FileProcessor2Spec extends FlatSpec with Matchers {
     "aTerminal.span: Span" should compile
   }
 
+  it should "be serialized as JSON" in {
+    """import io.circe.generic.auto._
+      |import io.circe.syntax._
+      |aTerminal.asJson""".stripMargin should compile
+  }
+
   val aParsingError = null.asInstanceOf[ParsingError]
 
   "A parsing error" should "have a location " in {
@@ -83,5 +104,11 @@ class FileProcessor2Spec extends FlatSpec with Matchers {
 
   it should "have a message" in {
     "aParsingError.message: String" should compile
+  }
+
+  it should "be serialized as JSON" in {
+    """import io.circe.generic.auto._
+      |import io.circe.syntax._
+      |aParsingError.asJson""".stripMargin should compile
   }
 }

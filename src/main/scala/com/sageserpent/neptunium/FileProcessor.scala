@@ -8,8 +8,10 @@ import com.sageserpent.neptunium.FileProcessor2._
 import io.github.classgraph.ClassGraph
 import org.log4s._
 import resource._
+import io.circe.syntax._
+import io.circe.generic.auto._
+import io.circe.yaml.syntax._
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.reflect.internal.util.{BatchSourceFile, Position}
 import scala.reflect.io.PlainFile
@@ -245,6 +247,10 @@ object FileProcessor {
           .range(source, startOfSource, startOfSource, onePastEndOfSource)
       )
 
+    val lineMapping: LineMapping = ???
+
+    import lineMapping.{File, Container, Terminal, Declaration, ParsingError}
+
     val fileFrom: PositionTree => File = {
       case PositionTree(rootPosition, childrenOfRoot, _) =>
         def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
@@ -292,10 +298,7 @@ object FileProcessor {
             section match {
               case PositionTree(position, Seq(), interestingTreeData) =>
                 val (typeName, name) = decompose(interestingTreeData)
-                new Terminal(typeName, name, locationSpanFrom(position), spanFrom(position)) with DeclarationContracts
-                with LineMapping {
-                  override def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex = ???
-                }
+                new Terminal(typeName, name, locationSpanFrom(position), spanFrom(position))
               case _ =>
                 containerFrom(section)
             }
@@ -318,10 +321,7 @@ object FileProcessor {
                             locationSpanFrom(position),
                             headerSpan,
                             footerSpan,
-                            children map declarationFrom) with CompoundContracts with DeclarationContracts
-              with LineMapping {
-                override def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex = ???
-              }
+                            children map declarationFrom)
           }
         }
 
@@ -338,12 +338,12 @@ object FileProcessor {
           childrenOfRoot map containerFrom,
           parsingErrorsDetected,
           if (parsingErrorsDetected) reporter.capturedMessages map errorFrom else Seq.empty
-        ) with CompoundContracts with LineMapping {
-          override def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex = ???
-        }
+        )
     }
 
-    val yamlFrom: PositionTree => String = {
+    val yaml = fileFrom(positionTreeCoveringEntireSource).asJson.asYaml.spaces4
+
+    /*    val yamlFrom: PositionTree => String = {
       case PositionTree(rootPosition, childrenOfRoot, _) =>
         def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
           val offset = offsetFrom(position)
@@ -472,7 +472,7 @@ object FileProcessor {
         joinPiecesOnSeparateLines(pieces)
     }
 
-    val yaml = yamlFrom(positionTreeCoveringEntireSource)
+    val yaml = yamlFrom(positionTreeCoveringEntireSource)*/
 
     for {
       writer <- managed(new FileWriter(pathOfOutputFileForYamlResult))

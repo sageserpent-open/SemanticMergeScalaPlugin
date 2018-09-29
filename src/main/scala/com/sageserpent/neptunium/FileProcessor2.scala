@@ -11,70 +11,6 @@ object FileProcessor2 {
       pathOfOutputFileForYamlResult: String
   ): Unit = ???
 
-  trait LineMapping {
-    def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex
-    def spanOf(locationSpan: LocationSpan): Span = Span(offsetFrom(locationSpan.start), offsetFrom(locationSpan.end))
-  }
-
-  trait Compound {
-    def locationSpan: LocationSpan
-    def childSpans: Seq[Span]
-  }
-
-  trait CompoundContracts extends Compound {
-    this: LineMapping =>
-    require(childSpans.isEmpty || Span(childSpans.head.start, childSpans.last.end) == spanOf(locationSpan))
-    require(childSpans.isEmpty || (childSpans zip childSpans.tail forall {
-      case (predecessor, successor) =>
-        predecessor abuts successor
-    }))
-  }
-
-  abstract case class File(
-      `type`: String,
-      name: String,
-      locationSpan: LocationSpan,
-      footerSpan: Span,
-      children: Seq[Container],
-      parsingErrorsDetected: Boolean,
-      parsingError: Seq[ParsingError]
-  ) extends Compound {
-    this: CompoundContracts with LineMapping =>
-    require(Span.floatingEmptySpan == footerSpan || (spanOf(locationSpan) abuts footerSpan))
-
-    def childSpans: Seq[Span] = children.map(child => spanOf(child.locationSpan))
-  }
-
-  case class ParsingError(location: LineAndOffSet, message: String)
-
-  trait Declaration {
-    def locationSpan: LocationSpan
-  }
-
-  trait DeclarationContracts extends Declaration {
-    this: LineMapping =>
-    require(!spanOf(locationSpan).isEmpty)
-  }
-
-  abstract case class Container(
-      `type`: String,
-      name: String,
-      locationSpan: LocationSpan,
-      headerSpan: Span,
-      footerSpan: Span,
-      children: Seq[Declaration]
-  ) extends Declaration
-      with Compound {
-    this: CompoundContracts with DeclarationContracts with LineMapping =>
-    def childSpans: Seq[Span] = headerSpan +: children.map(child => spanOf(child.locationSpan)) :+ footerSpan
-  }
-
-  abstract case class Terminal(`type`: String, name: String, locationSpan: LocationSpan, span: Span)
-      extends Declaration {
-    this: DeclarationContracts with LineMapping =>
-    require(spanOf(locationSpan) == span)
-  }
-
   type OneRelativeLineNumber = Int
 
   type ZeroRelativeOffset = Int
@@ -107,5 +43,66 @@ object FileProcessor2 {
     def abuts(another: Span): Boolean = 1 + this.end == another.start
   }
 
-  def structureOf(parsedSource: Parsed[Source]): File = ???
+  trait LineMapping {
+    def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex
+    def spanOf(locationSpan: LocationSpan): Span = Span(offsetFrom(locationSpan.start), offsetFrom(locationSpan.end))
+
+    trait Compound {
+      def locationSpan: LocationSpan
+      def childSpans: Seq[Span]
+
+      require(childSpans.isEmpty || Span(childSpans.head.start, childSpans.last.end) == spanOf(locationSpan))
+      require(childSpans.isEmpty || (childSpans zip childSpans.tail forall {
+        case (predecessor, successor) =>
+          predecessor abuts successor
+      }))
+    }
+
+    case class File(
+        `type`: String,
+        name: String,
+        locationSpan: LocationSpan,
+        footerSpan: Span,
+        children: Seq[Container],
+        parsingErrorsDetected: Boolean,
+        parsingError: Seq[ParsingError]
+    ) extends Compound {
+      require(Span.floatingEmptySpan == footerSpan || (spanOf(locationSpan) abuts footerSpan))
+
+      def childSpans: Seq[Span] = children.map(child => spanOf(child.locationSpan))
+    }
+
+    case class ParsingError(location: LineAndOffSet, message: String)
+
+    sealed trait Declaration {
+      def locationSpan: LocationSpan
+      require(!spanOf(locationSpan).isEmpty)
+    }
+
+    case class Container(
+        `type`: String,
+        name: String,
+        locationSpan: LocationSpan,
+        headerSpan: Span,
+        footerSpan: Span,
+        children: Seq[Declaration]
+    ) extends Declaration
+        with Compound {
+      def childSpans: Seq[Span] = headerSpan +: children.map(child => spanOf(child.locationSpan)) :+ footerSpan
+    }
+
+    case class Terminal(`type`: String, name: String, locationSpan: LocationSpan, span: Span) extends Declaration {
+      require(spanOf(locationSpan) == span)
+    }
+  }
+
+  def structureOf(parsedSource: Parsed[Source]): LineMapping#File = ???
+
+  {
+    val lineMapping: LineMapping = ???
+    import io.circe.generic.auto._
+    implicit val parsingErrorEncoder = implicitly[Encoder[lineMapping.ParsingError]]
+    implicit val terminalEncoder     = implicitly[Encoder[lineMapping.Terminal]]
+    implicit val containerEncoder    = implicitly[Encoder[lineMapping.Container]]
+  }
 }
