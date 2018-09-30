@@ -1,8 +1,8 @@
 package com.sageserpent.neptunium
 import io.circe.{Decoder, Encoder}
 
-import scala.meta.parsers.Parsed
 import scala.meta.Source
+import scala.meta.parsers.Parsed
 
 object FileProcessor2 {
   def discoverStructure(
@@ -91,18 +91,14 @@ object FileProcessor2 {
       def childSpans: Seq[Span] = headerSpan +: children.map(child => spanOf(child.locationSpan)) :+ footerSpan
     }
 
+    object Terminal{
+      def apply(`type`: String, name: String, locationSpan: LocationSpan): Terminal = Terminal(`type`, name, locationSpan, spanOf(locationSpan))
+    }
+
     case class Terminal(`type`: String, name: String, locationSpan: LocationSpan, span: Span) extends Declaration {
       require(spanOf(locationSpan) == span)
     }
   }
 
   def structureOf(parsedSource: Parsed[Source]): LineMapping#File = ???
-
-  {
-    val lineMapping: LineMapping = ???
-    import io.circe.generic.auto._
-    implicit val parsingErrorEncoder = implicitly[Encoder[lineMapping.ParsingError]]
-    implicit val terminalEncoder     = implicitly[Encoder[lineMapping.Terminal]]
-    implicit val containerEncoder    = implicitly[Encoder[lineMapping.Container]]
-  }
 }

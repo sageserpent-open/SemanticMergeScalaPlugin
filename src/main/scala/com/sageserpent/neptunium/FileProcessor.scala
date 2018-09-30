@@ -247,7 +247,9 @@ object FileProcessor {
           .range(source, startOfSource, startOfSource, onePastEndOfSource)
       )
 
-    val lineMapping: LineMapping = ???
+    val lineMapping: LineMapping = {
+      case (line: OneRelativeLineNumber, offset: ZeroRelativeOffset) => source.lineToOffset(line) + offset
+    }
 
     import lineMapping.{File, Container, Terminal, Declaration, ParsingError}
 
@@ -316,7 +318,7 @@ object FileProcessor {
 
               val (typeName, name) = decompose(interestingTreeData)
 
-              new Container(typeName,
+              Container(typeName,
                             name,
                             locationSpanFrom(position),
                             headerSpan,
@@ -325,12 +327,12 @@ object FileProcessor {
           }
         }
 
-        val errorFrom: ((Position, String)) => ParsingError = {
+        val errorFrom: Tuple2[Position, String] => ParsingError = {
           case (position: Position, message: String) =>
             ParsingError(lineAndColumnFor(position, _.start), message)
         }
 
-        new File(
+        File(
           "file",
           pathOfInputFile,
           locationSpanFrom(rootPosition.pos),
@@ -342,137 +344,6 @@ object FileProcessor {
     }
 
     val yaml = fileFrom(positionTreeCoveringEntireSource).asJson.asYaml.spaces4
-
-    /*    val yamlFrom: PositionTree => String = {
-      case PositionTree(rootPosition, childrenOfRoot, _) =>
-        def lineAndColumnFor(position: Position, offsetFrom: Position => Int) = {
-          val offset = offsetFrom(position)
-          if (offset < position.source.length) {
-            val zeroRelativeLine = position.source.offsetToLine(offset)
-            val line             = 1 + zeroRelativeLine
-            // Semantic Merge uses one-relative line numbers...
-            val offsetOfStartOfLine =
-              position.source.lineToOffset(zeroRelativeLine)
-            val column = offset - offsetOfStartOfLine // ... but zero-relative column numbers.
-            line -> column
-          } else {
-            val zeroRelativeLine = 1 + position.source.offsetToLine(position.source.length - 1)
-            val line             = 1 + zeroRelativeLine
-            // Semantic Merge uses one-relative line numbers...
-            val column = 0
-            line -> column // ... but zero-relative column numbers.
-          }
-        }
-
-        def yamlForLineSpan(position: Position) = {
-          // Semantic Merge uses []-intervals (closed - closed) for line spans,
-          // so we have to decrement the end position which is really one past
-          // the end ; 'Position' models a [)-interval (closed, open).
-          val (startLine, startColumn) = lineAndColumnFor(position, _.start)
-          val (endLine, endColumn)     = lineAndColumnFor(position, _.end - 1)
-          s"{start: [$startLine,$startColumn], end: [$endLine,$endColumn]}"
-        }
-
-        def yamlForCharacterSpan(position: Position) =
-          // Semantic Merge uses []-intervals (closed - closed) for character
-          // spans, so we have to decrement the end position which is really
-          // one past the end; 'Position' models a [)-interval (closed, open).
-          s"[${position.start}, ${position.end - 1}]"
-
-        val yamlForEmptyCharacterSpan = "[0, -1]"
-
-        def indent(indentationLevel: Int)(line: String) =
-          " " * indentationLevel + line
-
-        val indentPieces = (_: Iterable[String]).map(indent(2))
-
-        def joinPiecesOnSeparateLines(pieces: Iterable[String]) =
-          String.join("\n", pieces.asJava)
-
-        def yamlForSubpieces(
-            yamlForSubpiece: PositionTree => Iterable[String],
-            pieces: Iterable[PositionTree]
-        ): Iterable[String] =
-          pieces.flatMap(yamlForSubpiece andThen indentPieces)
-
-        def decompose(interestingTreeData: Option[InterestingTreeData]) = {
-          interestingTreeData.fold("code"                                     -> "")(
-            interestingTreeDataPayload => interestingTreeDataPayload.typeName -> interestingTreeDataPayload.name
-          )
-        }
-
-        def yamlForSection(section: PositionTree): Iterable[String] = {
-          def yamlForContainer(
-              position: Position,
-              children: Iterable[PositionTree],
-              interestingTreeData: Option[InterestingTreeData]
-          ): Iterable[String] = {
-            require(children.nonEmpty)
-            val startOfFirstChild     = children.head.position.pos.start
-            val onePastEndOfLastChild = children.last.position.pos.end
-            val headerSpan            = position.withEnd(startOfFirstChild)
-            val footerSpan            = position.withStart(onePastEndOfLastChild)
-            val (typeName, name)      = decompose(interestingTreeData)
-            Iterable(
-              s"- type : $typeName",
-              s"  name : $name",
-              s"  locationSpan : ${yamlForLineSpan(position)}",
-              s"  headerSpan : ${yamlForCharacterSpan(headerSpan)}",
-              s"  footerSpan : ${yamlForCharacterSpan(footerSpan)}"
-            ) ++ (if (children.nonEmpty)
-                    Iterable("  children :") ++ yamlForSubpieces(yamlForSection, children)
-                  else
-                    Iterable.empty[String])
-          }
-
-          def yamlForTerminal(
-              terminalPosition: Position,
-              interestingTreeData: Option[InterestingTreeData]
-          ): Iterable[String] = {
-            val (typeName, name) = decompose(interestingTreeData)
-            Iterable(
-              s"- type : $typeName",
-              s"  name : $name",
-              s"  locationSpan : ${yamlForLineSpan(terminalPosition)}",
-              s"  span : ${yamlForCharacterSpan(terminalPosition)}"
-            )
-          }
-
-          section match {
-            case PositionTree(position, Seq(), interestingTreeData) =>
-              yamlForTerminal(position, interestingTreeData)
-            case PositionTree(position, children, interestingTreeData) =>
-              yamlForContainer(position, children, interestingTreeData)
-          }
-        }
-
-        val yamlForError: ((Position, String)) => Iterable[String] = {
-          case (position: Position, message: String) =>
-            val (startLine, startColumn) = lineAndColumnFor(position, _.start)
-            Iterable(s"- location: [$startLine,$startColumn]", s"""  message: "$message"""")
-        }
-
-        val pieces: Iterable[String] = Iterable(
-          "---",
-          "type : file",
-          s"name : $pathOfInputFile",
-          s"locationSpan : ${yamlForLineSpan(rootPosition.pos)}",
-          s"footerSpan : $yamlForEmptyCharacterSpan",
-          s"parsingErrorsDetected : $parsingErrorsDetected"
-        ) ++
-          (if (childrenOfRoot.nonEmpty)
-             Iterable("children :") ++ yamlForSubpieces(yamlForSection, childrenOfRoot)
-           else
-             Iterable.empty[String]) ++
-          (if (parsingErrorsDetected)
-             Iterable("parsingErrors :") ++ (reporter.capturedMessages flatMap (yamlForError andThen indentPieces))
-           else
-             Iterable.empty)
-
-        joinPiecesOnSeparateLines(pieces)
-    }
-
-    val yaml = yamlFrom(positionTreeCoveringEntireSource)*/
 
     for {
       writer <- managed(new FileWriter(pathOfOutputFileForYamlResult))
