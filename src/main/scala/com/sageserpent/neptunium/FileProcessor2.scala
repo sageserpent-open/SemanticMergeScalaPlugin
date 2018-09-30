@@ -51,8 +51,12 @@ object FileProcessor2 {
       def locationSpan: LocationSpan
       def childSpans: Seq[Span]
 
-      require(childSpans.isEmpty || Span(childSpans.head.start, childSpans.last.end) == spanOf(locationSpan))
-      require(childSpans.isEmpty || (childSpans zip childSpans.tail forall {
+      def nonFloatingChildSpans = childSpans filterNot (_ != Span.floatingEmptySpan)
+
+      require(
+        nonFloatingChildSpans.isEmpty || Span(nonFloatingChildSpans.head.start, nonFloatingChildSpans.last.end) == spanOf(
+          locationSpan))
+      require(nonFloatingChildSpans.isEmpty || (nonFloatingChildSpans zip nonFloatingChildSpans.tail forall {
         case (predecessor, successor) =>
           predecessor abuts successor
       }))
@@ -91,8 +95,9 @@ object FileProcessor2 {
       def childSpans: Seq[Span] = headerSpan +: children.map(child => spanOf(child.locationSpan)) :+ footerSpan
     }
 
-    object Terminal{
-      def apply(`type`: String, name: String, locationSpan: LocationSpan): Terminal = Terminal(`type`, name, locationSpan, spanOf(locationSpan))
+    object Terminal {
+      def apply(`type`: String, name: String, locationSpan: LocationSpan): Terminal =
+        Terminal(`type`, name, locationSpan, spanOf(locationSpan))
     }
 
     case class Terminal(`type`: String, name: String, locationSpan: LocationSpan, span: Span) extends Declaration {
