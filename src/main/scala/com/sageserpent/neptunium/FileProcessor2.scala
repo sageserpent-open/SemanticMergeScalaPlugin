@@ -51,7 +51,7 @@ object FileProcessor2 {
       def locationSpan: LocationSpan
       def childSpans: Seq[Span]
 
-      def nonFloatingChildSpans = childSpans filterNot (_ != Span.floatingEmptySpan)
+      def nonFloatingChildSpans = childSpans filterNot (_ == Span.floatingEmptySpan)
 
       require(
         nonFloatingChildSpans.isEmpty || Span(nonFloatingChildSpans.head.start, nonFloatingChildSpans.last.end) == spanOf(

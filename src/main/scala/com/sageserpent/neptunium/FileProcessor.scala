@@ -248,7 +248,7 @@ object FileProcessor {
       )
 
     val lineMapping: LineMapping = {
-      case (line: OneRelativeLineNumber, offset: ZeroRelativeOffset) => source.lineToOffset(line) + offset
+      case (line: OneRelativeLineNumber, offset: ZeroRelativeOffset) => source.lineToOffset(line - 1) + offset
     }
 
     import lineMapping.{File, Container, Terminal, Declaration, ParsingError}
@@ -319,11 +319,11 @@ object FileProcessor {
               val (typeName, name) = decompose(interestingTreeData)
 
               Container(typeName,
-                            name,
-                            locationSpanFrom(position),
-                            headerSpan,
-                            footerSpan,
-                            children map declarationFrom)
+                        name,
+                        locationSpanFrom(position),
+                        headerSpan,
+                        footerSpan,
+                        children map declarationFrom)
           }
         }
 
@@ -335,7 +335,10 @@ object FileProcessor {
         File(
           "file",
           pathOfInputFile,
-          locationSpanFrom(rootPosition.pos),
+          if (childrenOfRoot.nonEmpty)
+            LocationSpan(locationSpanFrom(childrenOfRoot.head.position.pos).start,
+                         locationSpanFrom(childrenOfRoot.last.position.pos).end)
+          else locationSpanFrom(rootPosition.pos.focusStart),
           Span.floatingEmptySpan,
           childrenOfRoot map containerFrom,
           parsingErrorsDetected,
