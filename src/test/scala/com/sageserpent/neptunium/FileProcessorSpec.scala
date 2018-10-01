@@ -50,8 +50,8 @@ class FileProcessorSpec extends FlatSpec with Matchers {
       FileProcessor.discoverStructure(sourceFile.getAbsolutePath, charset.name, outputFile.getAbsolutePath)
 
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
-      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should contain("type: class")
-      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should contain(s"name: $objectConstructName")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include("type: module")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: $objectConstructName")
     }
   }
 
@@ -70,7 +70,10 @@ class FileProcessorSpec extends FlatSpec with Matchers {
 
       Files.write(sourceFile.toPath, trivialSource.getBytes(charset))
 
-      an [Exception] should be thrownBy FileProcessor.discoverStructure(sourceFile.getAbsolutePath, charset.name, outputFile.getAbsolutePath)
+      FileProcessor.discoverStructure(sourceFile.getAbsolutePath, charset.name, outputFile.getAbsolutePath)
+
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include("parsingErrorsDetected: true")
     }
   }
 }
