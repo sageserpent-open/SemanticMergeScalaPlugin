@@ -69,7 +69,7 @@ object FileProcessor2 {
         footerSpan: Span,
         children: Seq[Container],
         parsingErrorsDetected: Boolean,
-        parsingError: Seq[ParsingError]
+        parsingErrors: Seq[ParsingError]
     ) extends Compound {
       require(Span.floatingEmptySpan == footerSpan || (spanOf(locationSpan) abuts footerSpan))
 

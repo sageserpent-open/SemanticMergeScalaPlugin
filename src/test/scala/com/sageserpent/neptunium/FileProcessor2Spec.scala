@@ -30,7 +30,7 @@ class FileProcessor2Spec extends FlatSpec with Matchers {
 
   it should "have optional parsing errors" in {
     "aFile.parsingErrorsDetected: Boolean" should compile
-    "aFile.parsingError: Seq[ParsingError]" should compile
+    "aFile.parsingErrors: Seq[ParsingError]" should compile
   }
 
   it should "be serialized as JSON" in {
