@@ -14,7 +14,7 @@ It is MIT licensed - although the products mentioned above have their own licens
 
 ## How?
 
-You build the plugin from source and configure Plastic SCM / Semantic Merge to pick it up. It's hardly shrinkwrapped, but it's not hard to do either.
+You build the plugin from source and configure Plastic SCM / Semantic Merge / GMaster to pick it up. It's hardly shrinkwrapped, but it's not hard to do either.
 
 So, you're a Scala developer if you want to use this plugin, aren't you? You know about Git because you are here on Github?
 
