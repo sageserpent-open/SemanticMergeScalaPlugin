@@ -4,6 +4,7 @@
 A plugin that integrates with:-
  1. the version control system *Plastic SCM*.
  1. the standalone merge tool *Semantic Merge*.
+ 1. the Git front-end *GMaster*.
 
 It adds support for syntax-aware structured merging of **Scala** code.
 
@@ -17,20 +18,22 @@ You build the plugin from source and configure Plastic SCM / Semantic Merge to p
 
 So, you're a Scala developer if you want to use this plugin, aren't you? You know about Git because you are here on Github?
 
-Right, so clone this repository and fire up SBT with the custom task `allInOneCommandScript`. That will generate a file `neptunium.cmd` in the `target` directory of the SBT build. That file is the built plugin.
+Right, so clone this repository and fire up SBT with the task `assembly`. That will generate a file `neptunium.jar` in the `target\scala-2.12` directory of the SBT build. That file is the built plugin.
 
-Next, integrate this into Plastic SCM / Semantic Merge - the official documentation is here: https://users.semanticmerge.com/documentation/external-parsers/external-parsers-guide.shtml and an older blog post is here: http://codicesoftware.blogspot.com/2015/09/custom-languages-in-semantic-version.html.
+Next, integrate this into Plastic SCM / Semantic Merge / GMaster - the official documentation is here: https://users.semanticmerge.com/documentation/external-parsers/external-parsers-guide.shtml and an older blog post is here: http://codicesoftware.blogspot.com/2015/09/custom-languages-in-semantic-version.html.
 
-Specifically for this plugin, locate the file `externalparsers.conf` in your appdata directory - eg: `C:\Users\<you>\AppData\Local\plastic4`.
+Specifically for this plugin, locate the file `externalparsers.conf` in your appdata directory - eg: `C:\Users\<you>\AppData\Local\plastic4\externalparsers.conf`.
 
-Edit it to point to `neptunium.cmd`, like this:-
+For GMaster, the file path is slightly different: `C:\Users\<you>\AppData\Local\gmaster\config\externalparsers.conf`.
+
+Edit it to point to `neptunium.jar`, like this:-
 
 ~~~~
-.sc=C:\<blah>\target\neptunium.cmd
-.scala=C:\<blah>\target\neptunium.cmd
+.sc=C:\<blah>\target\scala-2.12\neptunium.jar
+.scala=C:\<blah>\target\scala-2.12\neptunium.jar
 ~~~~
 
-Restart Plastic SCM and / or Semantic Merge and your Scala files should work with the syntax / structure-aware diff and merge functionality. Awesome.
+Restart Plastic SCM / Semantic Merge/ GMaster as appropriate and your Scala files should work with the syntax / structure-aware diff and merge functionality. Awesome.
  
 ## The Small Print
 
@@ -38,15 +41,15 @@ Restart Plastic SCM and / or Semantic Merge and your Scala files should work wit
 
 It works, but has rough edges.
 
+There are tests and internal code contracts, but these mostly show that the various third party components integrate well together - there is no attempt to cover lots of Scala code cases.
+
 From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and usually provides sensible results - I use it on a regular basis nowadays and have no problems. It even copes with a sample of ScalaZ changesets!
 
 However, there is no guarantee that it won't mangle your Scala files during a merge, and if it does, you are on your own; this plugin doesn't come with guarantees or liability. Having said that, please do report bugs, or better yet, raise a pull request with a fix.
 
-(BTW - *where are the tests?!*)
-
 However, it needs finessing - where there is whitespace between sections of code, then the end of one section can overshoot a line break and spill on to the line on which the following section starts - this is quite harmless, but looks a bit strange sometimes.
 
-Scalatest tests aren't handled that well either, as they are not function definitions, rather chunks of expression code placed directly in the test class in a DSL - the plugin gets confused by such code. It doesn't break the plugin and it won't mangle your test code, but it looks weird.
+Scalatest tests aren't handled that well either, as they are not function definitions, rather chunks of expression code placed directly in the test class in a DSL - the plugin gets confused by such code. It doesn't break the plugin and it won't mangle your test code, but can look weird sometimes
 
 Please do fork this repository, have a play, and raise pull requests - collaborators are welcome!
 
@@ -73,12 +76,9 @@ There is some flow control though, in that when the plugin initialises, it creat
 (The first command line argument describes the mode the plugin should operate in - for now, it is always the string `shell`.)
 
 This is realised in the `Main` object (which is the top level application object, naturally) by a ScalaZ Stream pipeline that pumps from standard input to standard output, carrying out the transformation as a side effect within a task buried in the pipeline. The pipeline quits when the end sentinel is received, otherwise it extracts pairs of input and output filenames from successive triplets and hands the pairs off to the `FileProcessor` standalone object that does the real work - so the protocol logic is quite distinct from the transformation logic.
- 
-There is a headache caused by `FileProcessor`'s use of the Scala presentation compiler - it needs to have the compiler's library as an explicit classpath dependency distinct from the one that the application sees, and to make matters worse, that dependency must be on a JAR file. Now, the plugin is distributed as a self-executing JAR, i.e. a JAR embedded within a command script, so the plugin can't just add itself to that explicit classpath - won't work, the file extension has to be .JAR. Hmmm.
 
-The rather ungainly solution is to get `Main` to make a copy of its own executable file with the .JAR suffix in a temporary directory, this is what is picked up by the Scala presentation compiler. Yes, a *copy*, not a link - if the plugin uses a link, that prevents it from deleting the temporary file when it shuts down due to the executing program pinning the file under Windows. Even with a copy, it is still not possibly to delete the copy as the plugin shuts down, because the copy is loaded in memory by the presentation compiler. Ugh. The brute-force solution adopted by `Main` is to fork the entire process into an outer process that creates the copy, and then cleans up later - the inner process takes care of the pipeline and is the one that loads the copy into memory. So once the inner process terminates, the outer one can safely delete the copy. Messy, but it does work.
 
-OK, having griped about `Main`, what of the `FileProcessor`?
+OK, that's enough about `Main`, what of the `FileProcessor`?
 
 `FileProcessor` reads a Scala file and writes out the position tree description as YAML. It does this quite distinctly from the pipeline in `Main` - the latter is purely about freighting from standard input to standard output, there are no side branches in the pipeline to read the Scala files and write the description files.
 
@@ -88,12 +88,12 @@ The visitor then yields a new tree, distinct from the compiler's own abstract sy
 
 This position tree should correspond roughly to the syntactic structure of the Scala code being compiled. By roughly, I mean that it can leave out the fine detail and just report on the big picture items such as classes and methods. However, the plugin has to ensure that the positions on the tree completely cover the entire source file - no gaps are permitted.
 
-So there is a bit of post-processing of the position tree, using the `transform` method to do a functional transformation of the tree structure. I tried to use the ScalaZ rose tree abstraction to do this, but the code got quite messy - so for now, I've stuck with yet another tree data structure. Please feel free to refactor this to reuse an existing third party library that is tested, possibly the ScalaZ one.
+So there is a bit of post-processing of the position tree, using the `transform` method to do a functional transformation of the tree structure. I tried to use the ScalaZ rose tree abstraction to do this, but the code got quite messy - so for now, I've stuck with yet another hand-rolled tree data structure. Please feel free to refactor this to reuse an existing third party library that is tested, possibly the ScalaZ one.
 
 The post processing simplifies the tree structure to avoid overwhelming the end user with too much detail, and fills in the gaps in the position tree. When simplifying, the algorithm uses the notion of *interesting* tree nodes to decide on what to preserve and what to fuse together or just discard outright.
 
-Once the position tree has been given the treatment, there is straightforward but long-winded slog via recursive descent that writes out YAML in the manner expected by Plastic SCM / Semantic Merge, with a bit of logic to indent the YAML to make it human-readable.
+Once the position tree has been given the treatment, there is straightforward but long-winded slog via recursive descent that writes out YAML in the manner expected by Plastic SCM / Semantic Merge / GMaster.
 
-Be aware that the consumer of the YAML has its own notion of *sections*, *containers* and *terminals* - these can be represented as case-classes in their own right, but it was simpler to go with a homogenous position tree representation and encode directly into YAML, rather than introduce another intermediate tree structure.
+Be aware that the consumer of the YAML has its own notion of *sections*, *containers* and *terminals* - these are represented as case-classes in their own right, so the aforementioned recursive descent creates another intermediate tree structure that corresponds to the consumer's YAML model. That tree is then serialized as actual YAML by Circe and CirceYaml.
 
-Within a YAML container, there is postcondition forced on the plugin by the end consumer that the child sections in a container must all abut with each other to form a single contiguous piece of text without gaps. It is permitted to have a header at the start of the container and a footer at the end, these make up the gaps between the start and end of the parent container and the leading and trailing child sections, respectively. That's the model forced on the plugin and it has to roll with it, regardless of what the Scala grammar looks like. Failure to adhere to this will result in a mangled diff or merge - you have been warned!
+Within a YAML container, there is postcondition forced on the plugin by the end consumer that the child sections in a container must all abut with each other to form a single contiguous piece of text without gaps. It is permitted to have a header at the start of the container and a footer at the end, these make up the gaps between the start and end of the parent container and the leading and trailing child sections, respectively. That's the model forced on the plugin and it has to roll with it, regardless of what the Scala grammar looks like. This is enforced in the intermediate tree model via code contracts, so if you make mistake when working on the code, this should be detected, causing the plugin to fail fast.
