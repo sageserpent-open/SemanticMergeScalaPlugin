@@ -1,5 +1,7 @@
 package com.sageserpent.neptunium
 import io.circe.{Decoder, Encoder}
+import io.circe.syntax._
+import io.circe.generic.auto._
 
 import scala.meta.Source
 import scala.meta.parsers.Parsed
@@ -77,6 +79,13 @@ object FileProcessor2 {
     }
 
     case class ParsingError(location: LineAndOffSet, message: String)
+
+    object Declaration {
+      implicit val encoder: Encoder[Declaration] = {
+        case container: Container => container.asJson
+        case terminal: Terminal   => terminal.asJson
+      }
+    }
 
     sealed trait Declaration {
       def locationSpan: LocationSpan
