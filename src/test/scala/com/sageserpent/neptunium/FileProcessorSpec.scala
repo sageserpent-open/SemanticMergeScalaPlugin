@@ -41,8 +41,8 @@ class FileProcessorSpec extends FlatSpec with Matchers {
     } {
       val trivialSource =
         s"""
-          |object $objectConstructName {
-          |}
+           |object $objectConstructName {
+           |}
         """.stripMargin
 
       Files.write(sourceFile.toPath, trivialSource.getBytes(charset))
@@ -74,6 +74,29 @@ class FileProcessorSpec extends FlatSpec with Matchers {
 
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include("parsingErrorsDetected: true")
+    }
+  }
+
+  it should "not pollute the YAML with discriminators" in {
+    val objectConstructName = "IsThatAllThereIs"
+
+    for {
+      sourceFile <- temporarySourceScalaFile
+      outputFile <- temporaryOutputYamlFile
+    } {
+      val trivialSource =
+        s"""
+           |object $objectConstructName {
+           |  def foo() = 2
+           |}
+        """.stripMargin
+
+      Files.write(sourceFile.toPath, trivialSource.getBytes(charset))
+
+      FileProcessor.discoverStructure(sourceFile.getAbsolutePath, charset.name, outputFile.getAbsolutePath)
+
+      no(Files.readAllLines(outputFile.toPath).asScala) should include("Container")
+      no(Files.readAllLines(outputFile.toPath).asScala) should include("Terminal")
     }
   }
 }
