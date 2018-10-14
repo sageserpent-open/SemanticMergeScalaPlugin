@@ -44,12 +44,20 @@ object FileProcessor {
       Position.Range(position.input, position.start, position.end - 1)
 
     def locationSpanFrom(position: Position): LocationSpan = {
-      val adjustedPosition = positionWithEndDecrementedByOneCharacter(position)
+      // Semantic Merge uses []-intervals (closed - closed) for line spans,
+      // so we have to decrement the end position which is really one past
+      // the end ; 'Position' models a [)-interval (closed, open).
+      // The line indices have be bumped from zero-relative to one-relative as well.
 
-      LocationSpan(
-        1 + adjustedPosition.startLine -> adjustedPosition.startColumn,
-        1 + adjustedPosition.endLine   -> adjustedPosition.endColumn
-      )
+      if (0 == position.end) LocationSpan(1 + position.startLine -> position.startColumn, 1 -> -1)
+      else {
+        val adjustedPosition = positionWithEndDecrementedByOneCharacter(position)
+
+        LocationSpan(
+          1 + adjustedPosition.startLine -> adjustedPosition.startColumn,
+          1 + adjustedPosition.endLine   -> adjustedPosition.endColumn
+        )
+      }
     }
 
     def fileFromError(error: Parsed.Error): File = {
@@ -151,6 +159,9 @@ object FileProcessor {
 
           }
         }
+
+        traverser.apply(source)
+
         positionTreeQueue.head
       }
 
@@ -250,16 +261,6 @@ object FileProcessor {
             // spans, so we have to decrement the end position which is really
             // one past the end; 'Position' models a [)-interval (closed, open).
             Span(position.start, position.end - 1)
-
-          def locationSpanFrom(position: Position): LocationSpan = {
-            // Semantic Merge uses []-intervals (closed - closed) for line spans,
-            // so we have to decrement the end position which is really one past
-            // the end ; 'Position' models a [)-interval (closed, open).
-            // The line indices have be bumped from zero-relative to one-relative as well.
-            val adjustedPosition = positionWithEndDecrementedByOneCharacter(position)
-            LocationSpan(1 + position.startLine       -> position.startColumn,
-                         1 + adjustedPosition.endLine -> adjustedPosition.endColumn)
-          }
 
           def decompose(interestingTreeData: Option[InterestingTreeData]) = {
             interestingTreeData.fold("code"                                     -> "")(
