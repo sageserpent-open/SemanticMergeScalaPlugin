@@ -35,7 +35,7 @@ object FileProcessor {
     val input = Input.File(Paths.get(pathOfInputFile), Charset.forName(charsetOfInputFile))
 
     val lineMapping: LineMapping = {
-      case (line: OneRelativeLineNumber, offset: ZeroRelativeOffset) => ???
+      case (line: OneRelativeLineNumber, offset: ZeroRelativeOffset) => AccessWorkaround.offsetFrom(input)(line, offset)
     }
 
     import lineMapping._
@@ -125,8 +125,6 @@ object FileProcessor {
 
         val traverser: Traverser = new Traverser {
           override def apply(tree: Tree): Unit = {
-            tree
-
             val interestingTreeData =
               PartialFunction.condOpt(tree) {
                 case Defn.Def(_, name, _, _, _, _) =>
@@ -257,7 +255,7 @@ object FileProcessor {
             // Semantic Merge uses []-intervals (closed - closed) for line spans,
             // so we have to decrement the end position which is really one past
             // the end ; 'Position' models a [)-interval (closed, open).
-            // The line indices have be bumped from zero-relatiev to one-relative as well.
+            // The line indices have be bumped from zero-relative to one-relative as well.
             val adjustedPosition = positionWithEndDecrementedByOneCharacter(position)
             LocationSpan(1 + position.startLine       -> position.startColumn,
                          1 + adjustedPosition.endLine -> adjustedPosition.endColumn)
