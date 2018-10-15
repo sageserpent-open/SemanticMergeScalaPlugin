@@ -132,7 +132,7 @@ object FileProcessor {
         var positionTreeQueue = emptyPositionTreeQueue
 
         val traverser: Traverser = new Traverser {
-          override def apply(tree: Tree): Unit = {
+          override def apply(tree: Tree): Unit = if (tree.pos.end > tree.pos.start) {
             val interestingTreeData =
               PartialFunction.condOpt(tree) {
                 case Defn.Def(_, name, _, _, _, _) =>
@@ -162,7 +162,7 @@ object FileProcessor {
 
         traverser.apply(source)
 
-        positionTreeQueue.head
+        positionTreeQueue.headOption.getOrElse(PositionTree(Position.Range(input, 0, 0), Seq.empty, None))
       }
 
       def simplifyTreePreservingInterestingBits(rootLevelPositionTree: PositionTree): PositionTree = {
