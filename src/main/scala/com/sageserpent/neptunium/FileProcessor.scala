@@ -21,11 +21,11 @@ object FileProcessor {
 
   implicit class PositionSyntax(position: Position) {
     def withStart(start: Int): Position = position match {
-      case Position.None     => Position.Range(position.input, start, 1 + start)
+      case Position.None     => Position.Range(position.input, start, start)
       case _: Position.Range => Position.Range(position.input, start, position.end)
     }
     def withEnd(end: Int): Position = position match {
-      case Position.None     => Position.Range(position.input, end - 1, end)
+      case Position.None     => Position.Range(position.input, end, end)
       case _: Position.Range => Position.Range(position.input, position.start, end)
     }
   }
@@ -250,9 +250,11 @@ object FileProcessor {
           rootLevelPositionTree.copy(children = adjustedChildren)
         }
 
-      val positionTreeWithInternalAdjustments = positionTree.transform(
-        simplifyTreePreservingInterestingBits _ andThen squashTree andThen absorbMissingStartOfDeclarations andThen adjustChildPositionsToCoverTheSourceContiguously
-      )
+      val positionTreeWithInternalAdjustments = positionTree
+        .transform(simplifyTreePreservingInterestingBits)
+        .transform(squashTree)
+        .transform(absorbMissingStartOfDeclarations)
+        .transform(adjustChildPositionsToCoverTheSourceContiguously)
 
       positionTreeWithInternalAdjustments match {
         case PositionTree(rootPosition, childrenOfRoot, _) =>
