@@ -49,7 +49,7 @@ However, there is no guarantee that it won't mangle your Scala files during a me
 
 However, it needs finessing - where there is whitespace between sections of code, then the end of one section can overshoot a line break and spill on to the line on which the following section starts - this is quite harmless, but looks a bit strange sometimes.
 
-Scalatest tests aren't handled that well either, as they are not function definitions, rather chunks of expression code placed directly in the test class in a DSL - the plugin gets confused by such code. It doesn't break the plugin and it won't mangle your test code, but can look weird sometimes
+Scalatest tests aren't handled that well either, as they are not function definitions, rather chunks of expression code placed directly in the test class in a DSL - the plugin gets confused by such code. It doesn't break the plugin and it won't mangle your test code, all that happens is that tests are just treated as textual detail in the test suite class, rather than as structural elements in their own right - so if you move tests between classes, it won't get picked up as a move refactoring.
 
 Please do fork this repository, have a play, and raise pull requests - collaborators are welcome!
 
@@ -82,9 +82,9 @@ OK, that's enough about `Main`, what of the `FileProcessor`?
 
 `FileProcessor` reads a Scala file and writes out the position tree description as YAML. It does this quite distinctly from the pipeline in `Main` - the latter is purely about freighting from standard input to standard output, there are no side branches in the pipeline to read the Scala files and write the description files.
 
-It executes the Scala presentation compiler on the Scala input, building up an abstract syntax tree to which an instance of `PositionTreeBuilder` is applied as a visitor object.
+It uses the Scalameta library to parse the Scala source, building up an abstract syntax tree to which an instance of `Traverser` is applied.
 
-The visitor then yields a new tree, distinct from the compiler's own abstract syntax tree; this is the position tree - a `Position` is an abstraction from the presentation compiler library; it models a chunk of text within the Scala source, could be a caret position or could be a selection of several adjacent characters - there are other variations on this theme too. The plugin is only really interested in the multicharacter selection case, although caret-style positions are tolerated.
+The traveser then yields a new tree, distinct from the Scalameta's own abstract syntax tree; this is the position tree - a `Position` is an abstraction from the Scalameta library; it models a chunk of text within the Scala source, could be a caret position or could be a selection of several adjacent characters - there are other variations on this theme too. The plugin is only really interested in the multicharacter selection case, although caret-style positions are tolerated.
 
 This position tree should correspond roughly to the syntactic structure of the Scala code being compiled. By roughly, I mean that it can leave out the fine detail and just report on the big picture items such as classes and methods. However, the plugin has to ensure that the positions on the tree completely cover the entire source file - no gaps are permitted.
 
