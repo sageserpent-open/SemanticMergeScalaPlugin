@@ -37,15 +37,15 @@ Restart Plastic SCM / Semantic Merge/ GMaster as appropriate and your Scala file
 
 *`TL;DR - Caveat Emptor`*
 
-It works, but has rough edges.
+It works well, but has a couple of rough edges.
 
-There are tests and internal code contracts, but these mostly show that the various third party components integrate well together - there is no attempt to cover lots of Scala code cases.
+There are tests and internal code contracts, but these mostly show that the various third party components integrate well together - there is no attempt to cover lots of Scala code cases, although there is one test that uses a large and fairly complex piece of Scala code to verify the plugin.
 
-From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and usually provides sensible results - I use it on a regular basis nowadays and have no problems. It even copes with a sample of ScalaZ changesets!
+From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and provides sensible results - I use it on a regular basis nowadays and have no problems. It even copes with a sample of ScalaZ changesets!
 
 However, there is no guarantee that it won't mangle your Scala files during a merge, and if it does, you are on your own; this plugin doesn't come with guarantees or liability. Having said that, please do report bugs, or better yet, raise a pull request with a fix.
 
-However, it needs finessing - where there is whitespace between sections of code, then the end of one section can overshoot a line break and spill on to the line on which the following section starts - this is quite harmless, but looks a bit strange sometimes.
+Where there is whitespace between sections of code, then the end of one section can overshoot a line break and spill on to the line on which the following section starts - this is quite harmless, but looks a bit strange sometimes.
 
 Scalatest tests aren't handled that well either, as they are not function definitions, rather chunks of expression code placed directly in the test class in a DSL - the plugin gets confused by such code. It doesn't break the plugin and it won't mangle your test code, all that happens is that tests are just treated as textual detail in the test suite class, rather than as structural elements in their own right - so if you move tests between classes, it won't get picked up as a move refactoring.
 
