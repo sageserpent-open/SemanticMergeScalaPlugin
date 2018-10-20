@@ -1,8 +1,9 @@
 package com.sageserpent.neptunium
+import java.io.File
 import java.nio.charset.Charset
 import java.nio.file.Files
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import org.scalatest.{FlatSpec, Matchers}
 import resource._
 
@@ -97,6 +98,27 @@ class FileProcessorSpec extends FlatSpec with Matchers {
 
       no(Files.readAllLines(outputFile.toPath).asScala) should include("Container")
       no(Files.readAllLines(outputFile.toPath).asScala) should include("Terminal")
+    }
+  }
+
+  it should "cope with real world Scala code" in {
+    for {
+      outputFile <- temporaryOutputYamlFile
+    } {
+      val sourceFileUrl = getClass.getResource("bigLumpOfScala.scala")
+
+      FileProcessor.discoverStructure(new File(sourceFileUrl.toURI).getAbsolutePath,
+                                      charset.name,
+                                      outputFile.getAbsolutePath)
+
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: WorldBehaviours")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
+        s"name: WorldSpecUsingWorldReferenceImplementation")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
+        s"name: WorldSpecUsingWorldEfficientInMemoryImplementation")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
+        s"name: WorldSpecUsingWorldRedisBasedImplementation")
     }
   }
 }
