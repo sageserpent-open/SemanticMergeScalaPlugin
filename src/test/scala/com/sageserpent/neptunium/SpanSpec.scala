@@ -1,6 +1,6 @@
 package com.sageserpent.neptunium
 
-import com.sageserpent.neptunium.FileProcessor2.Span
+import com.sageserpent.neptunium.YamlModel.Span
 import io.circe.syntax._
 import org.scalacheck.{Gen, Shrink, ShrinkLowPriority}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks

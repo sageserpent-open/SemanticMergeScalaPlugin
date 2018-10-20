@@ -6,7 +6,7 @@ import io.circe.generic.auto._
 import scala.meta.Source
 import scala.meta.parsers.Parsed
 
-object FileProcessor2 {
+object YamlModel {
   def discoverStructure(
       pathOfInputFile: String,
       charsetOfInputFile: String,
@@ -27,8 +27,8 @@ object FileProcessor2 {
     val floatingEmptySpan = Span(0, -1)
 
     implicit val encoder: Encoder[Span] =
-      implicitly[Encoder[(ZeroRelativeCharacterIndex, ZeroRelativeCharacterIndex)]].contramap(span =>
-        span.start -> span.end)
+      implicitly[Encoder[(ZeroRelativeCharacterIndex, ZeroRelativeCharacterIndex)]]
+        .contramap(span => span.start -> span.end)
 
     implicit val decoder: Decoder[Span] =
       implicitly[Decoder[(ZeroRelativeCharacterIndex, ZeroRelativeCharacterIndex)]].emap {
@@ -57,7 +57,9 @@ object FileProcessor2 {
 
       require(
         nonFloatingChildSpans.isEmpty || Span(nonFloatingChildSpans.head.start, nonFloatingChildSpans.last.end) == spanOf(
-          locationSpan))
+          locationSpan
+        )
+      )
       require(nonFloatingChildSpans.isEmpty || (nonFloatingChildSpans zip nonFloatingChildSpans.tail forall {
         case (predecessor, successor) =>
           predecessor abuts successor

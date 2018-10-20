@@ -5,7 +5,7 @@ import java.nio.charset.Charset
 import java.nio.file.Paths
 
 import com.sageserpent.americium.seqEnrichment._
-import com.sageserpent.neptunium.FileProcessor2._
+import com.sageserpent.neptunium.YamlModel._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.yaml.syntax._
@@ -62,7 +62,8 @@ object FileProcessor {
 
     def fileFromError(error: Parsed.Error): File = {
       val locationSpanOfEntireSource = locationSpanFrom(
-        scala.meta.inputs.Position.Range(error.pos.input, 0, input.chars.size))
+        scala.meta.inputs.Position.Range(error.pos.input, 0, input.chars.size)
+      )
 
       File(
         "file",
@@ -293,12 +294,14 @@ object FileProcessor {
 
                 val (typeName, name) = decompose(interestingTreeData)
 
-                Container(typeName,
-                          name,
-                          locationSpanFrom(position),
-                          headerSpan,
-                          footerSpan,
-                          children map declarationFrom)
+                Container(
+                  typeName,
+                  name,
+                  locationSpanFrom(position),
+                  headerSpan,
+                  footerSpan,
+                  children map declarationFrom
+                )
             }
           }
 
@@ -311,8 +314,10 @@ object FileProcessor {
             "file",
             pathOfInputFile,
             if (childrenOfRoot.nonEmpty)
-              LocationSpan(locationSpanFrom(childrenOfRoot.head.position).start,
-                           locationSpanFrom(childrenOfRoot.last.position).end)
+              LocationSpan(
+                locationSpanFrom(childrenOfRoot.head.position).start,
+                locationSpanFrom(childrenOfRoot.last.position).end
+              )
             else locationSpanFrom(rootPosition),
             Span.floatingEmptySpan,
             childrenOfRoot map containerFrom,

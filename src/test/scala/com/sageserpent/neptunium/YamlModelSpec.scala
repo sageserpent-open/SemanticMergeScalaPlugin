@@ -1,9 +1,9 @@
 package com.sageserpent.neptunium
 
-import com.sageserpent.neptunium.FileProcessor2._
+import com.sageserpent.neptunium.YamlModel._
 import org.scalatest.{FlatSpec, Matchers}
 
-class FileProcessor2Spec extends FlatSpec with Matchers {
+class YamlModelSpec extends FlatSpec with Matchers {
   val lineMapping = null.asInstanceOf[LineMapping]
   import lineMapping.{Container, File, ParsingError, Terminal}
   val aFile = null.asInstanceOf[File]

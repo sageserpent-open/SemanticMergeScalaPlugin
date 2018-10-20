@@ -50,7 +50,7 @@ object Main extends App {
             (line: String) =>
               Task {
                 logger.info(line)
-            }
+              }
           )
           .toSource
 
