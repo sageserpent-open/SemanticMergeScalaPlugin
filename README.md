@@ -8,8 +8,6 @@ A plugin that integrates with:-
 
 It adds support for syntax-aware structured merging of **Scala** code.
 
-Currently, only a Windows build is supported - it could easily be generalised to run on Unix/OSX, but that is as per demand - please fork this repository and raise a pull request if you want to do this yourself, your contributions would be very welcome.
-
 It is MIT licensed - although the products mentioned above have their own licenses completely independent of this plugin.
 
 ## How?
