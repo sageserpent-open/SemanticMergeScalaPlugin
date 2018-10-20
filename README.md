@@ -57,7 +57,7 @@ Please do fork this repository, have a play, and raise pull requests - collabora
 
 ### Plugin Architecture ####
 
-OK, that's slightly high-faluting for a project with two source files in it, but let's talk about what is expected of the plugin by Plastic SCM and Semantic Merge, and what provides it.
+OK, that's slightly high-faluting for a project with two source files in it, but let's talk about what is expected of the plugin by Plastic SCM / Semantic Merge / GMaster, and what provides it.
 
 First off, see here: https://users.semanticmerge.com/documentation/external-parsers/external-parsers-guide.shtml.
 
@@ -69,9 +69,9 @@ Where the input file named by the first line in the triplet comes from and the f
 
 Likewise, the diff / merge mechanism is opaque to the plugin - the plugin just creates the descriptions that in turn are fed off as input to some mysterious mechanism out of its control.
 
-So, the plugin reads triplets of lines and for each triplet, it performs a transformation from Scala input to position tree output. It carries on doing this, reading triplet after triplet until it receives the special sentinel value `end` on standard input, at which point it quits. The plugin has no idea when it is iterating away over triplets as to whether these are from one or many invocations of diff / merge in Plastic SCM / Semantic Merge, or when the next triplet will arrive - it just sits there blocked on standard input until the next triplet or the end sentinel arrives.
+So, the plugin reads triplets of lines and for each triplet, it performs a transformation from Scala input to position tree output. It carries on doing this, reading triplet after triplet until it receives the special sentinel value `end` on standard input, at which point it quits. The plugin has no idea when it is iterating away over triplets as to whether these are from one or many invocations of diff / merge in Plastic SCM / Semantic Merge / GMaster, or when the next triplet will arrive - it just sits there blocked on standard input until the next triplet or the end sentinel arrives.
 
-There is some flow control though, in that when the plugin initialises, it creates and writes to a *flag-file* whose path is given by the second command line argument passed in by Plastic SCM / Semantic Merge to signal back to the host program that the latter may start sending it line triplets - this file contains the string `READY`. Furthermore, for each transformation that was carried out successfully on receipt of a triplet, it will write `OK` to standard output - or if something went wrong, `KO`. That's it really for the interaction protocol. Nice and simple.
+There is some flow control though, in that when the plugin initialises, it creates and writes to a *flag-file* whose path is given by the second command line argument passed in by Plastic SCM / Semantic Merge / GMaster to signal back to the host program that the latter may start sending it line triplets - this file contains the string `READY`. Furthermore, for each transformation that was carried out successfully on receipt of a triplet, it will write `OK` to standard output - or if something went wrong, `KO`. That's it really for the interaction protocol. Nice and simple.
 
 (The first command line argument describes the mode the plugin should operate in - for now, it is always the string `shell`.)
 
