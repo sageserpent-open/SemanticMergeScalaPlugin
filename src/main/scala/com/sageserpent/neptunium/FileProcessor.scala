@@ -98,6 +98,10 @@ object FileProcessor {
         override val typeName = "package"
       }
 
+      case class TypeTreeData(override val name: String) extends InterestingTreeData {
+        override val typeName = "type"
+      }
+
       case class PositionTree(
           position: Position,
           children: Seq[PositionTree],
@@ -140,8 +144,12 @@ object FileProcessor {
                   DefTreeData(name.value)
                 case Defn.Class(_, name, _, _, _) =>
                   ClassTreeData(name.value)
+                case Defn.Trait(_, name, _, _, _) =>
+                  ClassTreeData(name.value)
                 case Defn.Object(_, name, _) =>
                   ModuleTreeData(name.value)
+                case Defn.Type(_, name, _, _) =>
+                  TypeTreeData(name.value)
                 case Pkg(name, _) =>
                   PackageTreeData(name.toString)
               }
