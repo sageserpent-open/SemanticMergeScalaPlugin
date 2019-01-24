@@ -1,7 +1,7 @@
 package com.sageserpent.neptunium
-import io.circe.{Decoder, Encoder}
-import io.circe.syntax._
 import io.circe.generic.auto._
+import io.circe.syntax._
+import io.circe.{Decoder, Encoder}
 
 import scala.meta.Source
 import scala.meta.parsers.Parsed
@@ -71,7 +71,7 @@ object YamlModel {
         name: String,
         locationSpan: LocationSpan,
         footerSpan: Span,
-        children: Seq[Container],
+        children: Seq[Declaration],
         parsingErrorsDetected: Boolean,
         parsingErrors: Seq[ParsingError]
     ) extends Compound {
