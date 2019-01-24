@@ -7,6 +7,8 @@ import scala.collection.JavaConverters._
 import org.scalatest.{FlatSpec, Matchers}
 import resource._
 
+import scala.util.matching.Regex
+
 class FileProcessorSpec extends FlatSpec with Matchers {
   val charset = Charset.defaultCharset()
 
@@ -30,6 +32,7 @@ class FileProcessorSpec extends FlatSpec with Matchers {
       FileProcessor.discoverStructure(sourceFile.getAbsolutePath, charset.name, outputFile.getAbsolutePath)
 
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith(s"name: ${sourceFile.getAbsolutePath}")
     }
   }
 
@@ -51,6 +54,7 @@ class FileProcessorSpec extends FlatSpec with Matchers {
       FileProcessor.discoverStructure(sourceFile.getAbsolutePath, charset.name, outputFile.getAbsolutePath)
 
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith(s"name: ${sourceFile.getAbsolutePath}")
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include("type: module")
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: $objectConstructName")
     }
@@ -74,6 +78,7 @@ class FileProcessorSpec extends FlatSpec with Matchers {
       FileProcessor.discoverStructure(sourceFile.getAbsolutePath, charset.name, outputFile.getAbsolutePath)
 
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith(s"name: ${sourceFile.getAbsolutePath}")
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include("parsingErrorsDetected: true")
     }
   }
@@ -105,13 +110,15 @@ class FileProcessorSpec extends FlatSpec with Matchers {
     for {
       outputFile <- temporaryOutputYamlFile
     } {
-      val sourceFileUrl = getClass.getResource("bigLumpOfScala.scala")
+      val scalaFilename = "bigLumpOfScala.scala"
+      val sourceFileUrl = getClass.getResource(scalaFilename)
 
       FileProcessor.discoverStructure(new File(sourceFileUrl.toURI).getAbsolutePath,
                                       charset.name,
                                       outputFile.getAbsolutePath)
 
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith regex s"""${Regex.quote("name: ")}.*$scalaFilename""".r
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: WorldBehaviours")
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
         s"name: WorldSpecUsingWorldReferenceImplementation")
