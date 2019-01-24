@@ -178,6 +178,7 @@ object FileProcessor {
               case ModuleTreeData(_)     => true
               case PackageTreeData(_)    => true
               case DefTreeData(_)        => false
+              case ValTreeData(_)        => false
               case ExpressionTreeData(_) => false
               case _                     => valsAndExpressionsAreImportant
             }
