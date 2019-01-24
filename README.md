@@ -43,11 +43,11 @@ There are tests and internal code contracts, but these mostly show that the vari
 
 From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and provides sensible results - I use it on a regular basis nowadays and have no problems. It even copes with a sample of ScalaZ changesets!
 
+Scalatest tests are handled to some extent; if you move a test between classes or files or within a file, it should get picked up as a move refactoring.
+
 However, there is no guarantee that it won't mangle your Scala files during a merge, and if it does, you are on your own; this plugin doesn't come with guarantees or liability. Having said that, please do report bugs, or better yet, raise a pull request with a fix.
 
 Where there is whitespace between sections of code, then the end of one section can overshoot a line break and spill on to the line on which the following section starts - this is quite harmless, but looks a bit strange sometimes.
-
-Scalatest tests aren't handled that well either, as they are not function definitions, rather chunks of expression code placed directly in the test class in a DSL - the plugin gets confused by such code. It doesn't break the plugin and it won't mangle your test code, all that happens is that tests are just treated as textual detail in the test suite class, rather than as structural elements in their own right - so if you move tests between classes, it won't get picked up as a move refactoring.
 
 Please do fork this repository, have a play, and raise pull requests - collaborators are welcome!
 
