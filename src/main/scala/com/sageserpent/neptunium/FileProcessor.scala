@@ -107,6 +107,10 @@ object FileProcessor {
         override val typeName = "type"
       }
 
+      case class ExpressionTreeData(override val name: String) extends InterestingTreeData {
+        override val typeName = "expression"
+      }
+
       case class PositionTree(
           position: Position,
           children: Seq[PositionTree],
@@ -141,7 +145,7 @@ object FileProcessor {
 
         var positionTreeQueue = emptyPositionTreeQueue
 
-        var valsAreImportant = true
+        var valsAndExpressionsAreImportant = true
 
         val traverser: Traverser = new Traverser {
           override def apply(tree: Tree): Unit = if (tree.pos.end > tree.pos.start) {
@@ -149,8 +153,10 @@ object FileProcessor {
               PartialFunction.condOpt(tree) {
                 case Defn.Def(_, name, _, _, _, _) =>
                   DefTreeData(name.value)
-                case Defn.Val(_, List(Var(name)), _, _) if valsAreImportant =>
+                case Defn.Val(_, List(Var(name)), _, _) if valsAndExpressionsAreImportant =>
                   ValTreeData(name.value)
+                case Term.ApplyInfix(_, name, _, _) if valsAndExpressionsAreImportant =>
+                  ExpressionTreeData(name.value)
                 case Defn.Class(_, name, _, _, _) =>
                   ClassTreeData(name.value)
                 case Defn.Trait(_, name, _, _, _) =>
@@ -163,16 +169,17 @@ object FileProcessor {
                   PackageTreeData(name.toString)
               }
 
-            val stackedPositionTreeQueue = positionTreeQueue
-            val stackedValsAreImportant  = valsAreImportant
+            val stackedPositionTreeQueue              = positionTreeQueue
+            val stackedValsAndExpressionsAreImportant = valsAndExpressionsAreImportant
 
             positionTreeQueue = emptyPositionTreeQueue
-            valsAreImportant = interestingTreeData.fold(valsAreImportant) {
-              case ClassTreeData(_)   => true
-              case ModuleTreeData(_)  => true
-              case PackageTreeData(_) => true
-              case DefTreeData(_)     => false
-              case _                  => valsAreImportant
+            valsAndExpressionsAreImportant = interestingTreeData.fold(valsAndExpressionsAreImportant) {
+              case ClassTreeData(_)      => true
+              case ModuleTreeData(_)     => true
+              case PackageTreeData(_)    => true
+              case DefTreeData(_)        => false
+              case ExpressionTreeData(_) => false
+              case _                     => valsAndExpressionsAreImportant
             }
 
             super.apply(tree)
@@ -184,7 +191,7 @@ object FileProcessor {
                 interestingTreeData
               )
             )
-            valsAreImportant = stackedValsAreImportant
+            valsAndExpressionsAreImportant = stackedValsAndExpressionsAreImportant
           }
         }
 
