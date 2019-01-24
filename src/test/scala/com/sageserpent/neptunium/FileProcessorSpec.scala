@@ -142,6 +142,7 @@ class FileProcessorSpec extends FlatSpec with Matchers {
 
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith regex s"""${Regex.quote("name: ")}.*$scalaFilename""".r
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include("type: val")
       exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: neptunium")
     }
   }
