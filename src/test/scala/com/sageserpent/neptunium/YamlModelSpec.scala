@@ -25,12 +25,14 @@ class YamlModelSpec extends FlatSpec with Matchers {
   }
 
   it should "have optional children" in {
-    "aFile.children: Seq[Container]" should compile
+    """import lineMapping.Declaration
+      |aFile.children: Seq[Declaration]
+      |aFile.copy(children = Seq.empty[Declaration])""".stripMargin should compile
   }
 
   it should "have optional parsing errors" in {
-    "aFile.parsingErrorsDetected: Boolean" should compile
-    "aFile.parsingErrors: Seq[ParsingError]" should compile
+    """aFile.parsingErrorsDetected: Boolean
+      |aFile.parsingErrors: Seq[ParsingError]""".stripMargin should compile
   }
 
   it should "be serialized as JSON" in {
@@ -63,7 +65,8 @@ class YamlModelSpec extends FlatSpec with Matchers {
 
   it should "have optional children" in {
     """import lineMapping.Declaration
-      |aContainer.children: Seq[Declaration]""".stripMargin should compile
+      |aContainer.children: Seq[Declaration]
+      |aContainer.copy(children = Seq.empty[Declaration])""".stripMargin should compile
   }
 
   it should "be serialized as JSON" in {
