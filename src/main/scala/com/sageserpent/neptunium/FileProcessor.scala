@@ -12,6 +12,7 @@ import io.circe.yaml.syntax._
 import org.log4s._
 import resource._
 
+import scala.meta.Pat.Var
 import scala.meta.{Defn, _}
 import scala.meta.inputs.Input
 import scala.util.matching._
@@ -86,6 +87,10 @@ object FileProcessor {
         override val typeName = "def"
       }
 
+      case class ValTreeData(override val name: String) extends InterestingTreeData {
+        override val typeName = "val"
+      }
+
       case class ClassTreeData(override val name: String) extends InterestingTreeData {
         override val typeName = "class"
       }
@@ -136,12 +141,16 @@ object FileProcessor {
 
         var positionTreeQueue = emptyPositionTreeQueue
 
+        var valsAreImportant = true
+
         val traverser: Traverser = new Traverser {
           override def apply(tree: Tree): Unit = if (tree.pos.end > tree.pos.start) {
             val interestingTreeData =
               PartialFunction.condOpt(tree) {
                 case Defn.Def(_, name, _, _, _, _) =>
                   DefTreeData(name.value)
+                case Defn.Val(_, List(Var(name)), _, _) if valsAreImportant =>
+                  ValTreeData(name.value)
                 case Defn.Class(_, name, _, _, _) =>
                   ClassTreeData(name.value)
                 case Defn.Trait(_, name, _, _, _) =>
@@ -155,9 +164,19 @@ object FileProcessor {
               }
 
             val stackedPositionTreeQueue = positionTreeQueue
+            val stackedValsAreImportant  = valsAreImportant
 
             positionTreeQueue = emptyPositionTreeQueue
+            valsAreImportant = interestingTreeData.fold(valsAreImportant) {
+              case ClassTreeData(_)   => true
+              case ModuleTreeData(_)  => true
+              case PackageTreeData(_) => true
+              case DefTreeData(_)     => false
+              case _                  => valsAreImportant
+            }
+
             super.apply(tree)
+
             positionTreeQueue = stackedPositionTreeQueue.enqueue(
               PositionTree(
                 tree.pos,
@@ -165,7 +184,7 @@ object FileProcessor {
                 interestingTreeData
               )
             )
-
+            valsAreImportant = stackedValsAreImportant
           }
         }
 
@@ -279,18 +298,11 @@ object FileProcessor {
             )
           }
 
-          def containerFrom(section: PositionTree): Container = {
-            def declarationFrom(section: PositionTree): Declaration = {
-              section match {
-                case PositionTree(position, Seq(), interestingTreeData) =>
-                  val (typeName, name) = decompose(interestingTreeData)
-                  new Terminal(typeName, name, locationSpanFrom(position), spanFrom(position))
-                case _ =>
-                  containerFrom(section)
-              }
-            }
-
+          def declarationFrom(section: PositionTree): Declaration = {
             section match {
+              case PositionTree(position, Seq(), interestingTreeData) =>
+                val (typeName, name) = decompose(interestingTreeData)
+                new Terminal(typeName, name, locationSpanFrom(position), spanFrom(position))
               case PositionTree(position, children, interestingTreeData) =>
                 val (headerSpan, footerSpan) = if (children.nonEmpty) {
                   val startOfFirstChild     = children.head.position.start
@@ -313,11 +325,6 @@ object FileProcessor {
             }
           }
 
-          val errorFrom: Tuple2[Position, String] => ParsingError = {
-            case (position: Position, message: String) =>
-              ParsingError(1 + position.startLine -> position.startColumn, message)
-          }
-
           File(
             "file",
             pathOfInputFile,
@@ -328,7 +335,7 @@ object FileProcessor {
               )
             else locationSpanFrom(rootPosition),
             Span.floatingEmptySpan,
-            childrenOfRoot map containerFrom,
+            childrenOfRoot map declarationFrom,
             false,
             Seq.empty
           )
@@ -336,7 +343,11 @@ object FileProcessor {
     }
 
     val yaml =
-      input.parse[Source].fold(fileFromError, fileFromSource).asJson.asYaml.spaces4
+      (if (pathOfInputFile.endsWith(".sbt")) { dialects.Sbt0137(input).parse[Source] } else { input.parse[Source] })
+        .fold(fileFromError, fileFromSource)
+        .asJson
+        .asYaml
+        .spaces4
 
     for {
       writer <- managed(new FileWriter(pathOfOutputFileForYamlResult))
