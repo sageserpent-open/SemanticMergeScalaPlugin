@@ -128,4 +128,21 @@ class FileProcessorSpec extends FlatSpec with Matchers {
         s"name: WorldSpecUsingWorldRedisBasedImplementation")
     }
   }
+
+  it should "cope with real world SBT code" in {
+    for {
+      outputFile <- temporaryOutputYamlFile
+    } {
+      val scalaFilename = "dollopOf.sbt"
+      val sourceFileUrl = getClass.getResource(scalaFilename)
+
+      FileProcessor.discoverStructure(new File(sourceFileUrl.toURI).getAbsolutePath,
+                                      charset.name,
+                                      outputFile.getAbsolutePath)
+
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith regex s"""${Regex.quote("name: ")}.*$scalaFilename""".r
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: neptunium")
+    }
+  }
 }
