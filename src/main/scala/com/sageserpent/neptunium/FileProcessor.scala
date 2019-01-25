@@ -151,8 +151,12 @@ object FileProcessor {
           override def apply(tree: Tree): Unit = if (tree.pos.end > tree.pos.start) {
             val interestingTreeData =
               PartialFunction.condOpt(tree) {
+                case Decl.Def(_, name, _, _, _) =>
+                  DefTreeData(name.value)
                 case Defn.Def(_, name, _, _, _, _) =>
                   DefTreeData(name.value)
+                case Decl.Val(_, List(Var(name)), _) if valsAndExpressionsAreImportant =>
+                  ValTreeData(name.value)
                 case Defn.Val(_, List(Var(name)), _, _) if valsAndExpressionsAreImportant =>
                   ValTreeData(name.value)
                 case Term.ApplyInfix(_, name, _, _) if valsAndExpressionsAreImportant =>
