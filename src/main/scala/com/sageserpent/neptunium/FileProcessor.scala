@@ -247,37 +247,43 @@ object FileProcessor {
         }
       }
 
-      def absorbMissingStartOfDeclarations(rootLevelPositionTree: PositionTree) =
+      def absorbMissingStartOfDeclarations(rootLevelPositionTree: PositionTree): PositionTree =
         if (rootLevelPositionTree.isLeaf) {
           rootLevelPositionTree
         } else {
           import rootLevelPositionTree.children
-          val adjustedPositionTrees = children zip children.tail map {
-            case (predecessor, successor: PositionTree) =>
+          val adjustedChildren = (children.init :\ List(children.last)) {
+            case (predecessor, successors) =>
+              val headSuccessor :: followingSuccessors = successors
               def adjustSuccessor(regex: Regex) = {
                 val slice = source.pos.text
-                  .slice(predecessor.position.end, successor.position.start)
+                  .slice(predecessor.position.end, headSuccessor.position.start)
                   .toString
                 regex.findFirstMatchIn(slice) match {
                   case Some(hit) =>
-                    successor.copy(position = successor.position.withStart(hit.start))
-                  case None => successor
+                    headSuccessor.copy(position = headSuccessor.position.withStart(hit.start))
+                  case None => headSuccessor
                 }
               }
 
-              successor match {
+              val adjustedHeadSuccessor = headSuccessor match {
                 case PositionTree(_, _, Some(DefTreeData(_))) =>
                   adjustSuccessor("""\s*def\s*$""".r)
                 case PositionTree(_, _, Some(ClassTreeData(_))) =>
-                  adjustSuccessor("""\s*((abstract|case)s*+)?class\s*$""".r)
-                case _ => successor
+                  adjustSuccessor("""\s*((abstract|case)\s+)?class\s*$""".r)
+                case _ => headSuccessor
               }
+
+              val adjustedSuccessors = adjustedHeadSuccessor :: followingSuccessors
+
+              if (predecessor.position.start == adjustedHeadSuccessor.position.start) adjustedSuccessors
+              else predecessor :: adjustedSuccessors
           }
-          val adjustedChildren = children.head +: adjustedPositionTrees.toList
+
           rootLevelPositionTree.copy(children = adjustedChildren)
         }
 
-      def adjustChildPositionsToCoverTheSourceContiguously(rootLevelPositionTree: PositionTree) =
+      def adjustChildPositionsToCoverTheSourceContiguously(rootLevelPositionTree: PositionTree): PositionTree =
         if (rootLevelPositionTree.isLeaf) {
           rootLevelPositionTree
         } else {
