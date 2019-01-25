@@ -48,7 +48,7 @@ object FileProcessor {
       // Semantic Merge uses []-intervals (closed - closed) for line spans,
       // so we have to decrement the end position which is really one past
       // the end ; 'Position' models a [)-interval (closed, open).
-      // The line indices have be bumped from zero-relative to one-relative as well.
+      // The line indices have been bumped from zero-relative to one-relative as well.
 
       if (0 == position.end) LocationSpan(1 + position.startLine -> position.startColumn, 1 -> -1)
       else {
@@ -247,37 +247,23 @@ object FileProcessor {
         }
       }
 
-      def absorbMissingStartOfDeclarations(rootLevelPositionTree: PositionTree): PositionTree =
+      def loseEdgeWhitespace(rootLevelPositionTree: PositionTree): PositionTree =
         if (rootLevelPositionTree.isLeaf) {
           rootLevelPositionTree
         } else {
           import rootLevelPositionTree.children
-          val adjustedChildren = (children.init :\ List(children.last)) {
-            case (predecessor, successors) =>
-              val headSuccessor :: followingSuccessors = successors
-              def adjustSuccessor(regex: Regex) = {
-                val slice = source.pos.text
-                  .slice(predecessor.position.end, headSuccessor.position.start)
-                  .toString
-                regex.findFirstMatchIn(slice) match {
-                  case Some(hit) =>
-                    headSuccessor.copy(position = headSuccessor.position.withStart(hit.start))
-                  case None => headSuccessor
-                }
-              }
-
-              val adjustedHeadSuccessor = headSuccessor match {
-                case PositionTree(_, _, Some(DefTreeData(_))) =>
-                  adjustSuccessor("""\s*def\s*$""".r)
-                case PositionTree(_, _, Some(ClassTreeData(_))) =>
-                  adjustSuccessor("""\s*((abstract|case)\s+)?class\s*$""".r)
-                case _ => headSuccessor
-              }
-
-              val adjustedSuccessors = adjustedHeadSuccessor :: followingSuccessors
-
-              if (predecessor.position.start == adjustedHeadSuccessor.position.start) adjustedSuccessors
-              else predecessor :: adjustedSuccessors
+          val whitespaceRegex = """(?s)^\s*(\S(.*\S)?)\s*$""".r
+          val adjustedChildren = children flatMap { child =>
+            whitespaceRegex.findFirstMatchIn(child.position.text) match {
+              case Some(hit) =>
+                Some(
+                  child.copy(
+                    position = child.position
+                      .withStart(child.position.start + hit.start(1))
+                      .withEnd(child.position.start + hit.end(1))))
+              case None =>
+                None
+            }
           }
 
           rootLevelPositionTree.copy(children = adjustedChildren)
@@ -288,18 +274,18 @@ object FileProcessor {
           rootLevelPositionTree
         } else {
           import rootLevelPositionTree.children
-          val adjustedPositionTrees = children zip children.tail map {
+          val adjustedSuccessorChildren = children zip children.tail map {
             case (predecessor, successor) =>
-              predecessor.copy(position = predecessor.position.withEnd(successor.position.start))
+              successor.copy(position = successor.position.withStart(predecessor.position.end))
           }
-          val adjustedChildren = adjustedPositionTrees.toList :+ children.last
+          val adjustedChildren = children.head +: adjustedSuccessorChildren.toList
           rootLevelPositionTree.copy(children = adjustedChildren)
         }
 
       val positionTreeWithInternalAdjustments = positionTree
         .transform(simplifyTreePreservingInterestingBits)
         .transform(squashTree)
-        .transform(absorbMissingStartOfDeclarations)
+        .transform(loseEdgeWhitespace)
         .transform(adjustChildPositionsToCoverTheSourceContiguously)
 
       positionTreeWithInternalAdjustments match {
