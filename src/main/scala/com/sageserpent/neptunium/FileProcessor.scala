@@ -370,7 +370,9 @@ object FileProcessor {
     }
 
     val yaml =
-      (if (pathOfInputFile.endsWith(".sbt")) { dialects.Sbt0137(input).parse[Source] } else { input.parse[Source] })
+      (if (pathOfInputFile.endsWith(".sbt") || pathOfInputFile.endsWith(".sc")) {
+         dialects.Sbt0137(input).parse[Source]
+       } else { input.parse[Source] })
         .fold(fileFromError, fileFromSource)
         .asJson
         .asYaml
