@@ -29,6 +29,7 @@ Edit it to point to `neptunium.jar`, like this:-
 ~~~~
 .sc=C:\<blah>\target\scala-2.12\neptunium.jar
 .scala=C:\<blah>\target\scala-2.12\neptunium.jar
+.sbt=C:\<blah>\target\scala-2.12\neptunium.jar
 ~~~~
 
 Restart Plastic SCM / Semantic Merge/ GMaster as appropriate and your Scala files should work with the syntax / structure-aware diff and merge functionality. Awesome.
@@ -37,8 +38,6 @@ Restart Plastic SCM / Semantic Merge/ GMaster as appropriate and your Scala file
 
 *`TL;DR - Caveat Emptor`*
 
-It works well, but has a couple of rough edges.
-
 There are tests and internal code contracts, but these mostly show that the various third party components integrate well together - there is no attempt to cover lots of Scala code cases, although there is one test that uses a large and fairly complex piece of Scala code to verify the plugin.
 
 From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and provides sensible results - I use it on a regular basis nowadays and have no problems. It even copes with a sample of ScalaZ changesets!
@@ -46,8 +45,6 @@ From doing manual dogfood testing of my own Scala projects (not just the public 
 Scalatest tests are handled to some extent; if you move a test between classes or files or within a file, it should get picked up as a move refactoring.
 
 However, there is no guarantee that it won't mangle your Scala files during a merge, and if it does, you are on your own; this plugin doesn't come with guarantees or liability. Having said that, please do report bugs, or better yet, raise a pull request with a fix.
-
-Where there is whitespace between sections of code, then the end of one section can overshoot a line break and spill on to the line on which the following section starts - this is quite harmless, but looks a bit strange sometimes.
 
 Please do fork this repository, have a play, and raise pull requests - collaborators are welcome!
 
