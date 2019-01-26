@@ -164,4 +164,24 @@ class FileProcessorSpec extends FlatSpec with Matchers {
       exactly(5, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: in")
     }
   }
+
+  it should "cope with a worksheet" in {
+    for {
+      outputFile <- temporaryOutputYamlFile
+    } {
+      val scalaFilename = "sandbox.sc"
+      val sourceFileUrl = getClass.getResource(scalaFilename)
+
+      FileProcessor.discoverStructure(new File(sourceFileUrl.toURI).getAbsolutePath,
+                                      charset.name,
+                                      outputFile.getAbsolutePath)
+
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith regex s"""${Regex.quote("name: ")}.*$scalaFilename""".r
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include("type: val")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: x")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include("type: def")
+      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: aFunction")
+    }
+  }
 }
