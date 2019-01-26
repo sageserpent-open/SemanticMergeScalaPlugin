@@ -40,7 +40,7 @@ Restart Plastic SCM / Semantic Merge/ GMaster as appropriate and your Scala file
 
 There are tests and internal code contracts, but these mostly show that the various third party components integrate well together - there is no attempt to cover lots of Scala code cases, although there is one test that uses a large and fairly complex piece of Scala code to verify the plugin.
 
-From doing manual dogfood testing of my own Scala projects (not just the public ones on GitHub), it seems stable and provides sensible results - I use it on a regular basis nowadays and have no problems. It even copes with a sample of ScalaZ changesets!
+From doing manual dogfood testing of my own Scala projects, it seems stable and provides sensible results - I use it on a regular basis nowadays and have no problems. It even copes with a sample of ScalaZ changesets!
 
 Scalatest tests are handled to some extent; if you move a test between classes or files or within a file, it should get picked up as a move refactoring.
 
