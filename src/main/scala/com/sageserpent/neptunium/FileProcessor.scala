@@ -33,7 +33,7 @@ object FileProcessor {
 
   val edgeWhitespaceWithCoreTextRegex: Regex = """(?s)\A\s*(\S(?:.*\S)?)\s*\z""".r
 
-  val upToAndIncludingTheFirstNewlineRegex: Regex = """(?s)\A[^\n]*\n""".r
+  val upToAndIncludingTheFirstLinebreakRegex: Regex = """(?sm)\A.+?^""".r
 
   def discoverStructure(pathOfInputFile: String, charsetOfInputFile: String, pathOfOutputFileForYamlResult: String) {
 
@@ -287,7 +287,7 @@ object FileProcessor {
             case (predecessor, successor) =>
               if (successor.isInteresting) {
                 val gapText = source.pos.text.slice(predecessor.position.end, successor.position.start)
-                upToAndIncludingTheFirstNewlineRegex.findFirstMatchIn(gapText) match {
+                upToAndIncludingTheFirstLinebreakRegex.findFirstMatchIn(gapText) match {
                   case Some(hit) =>
                     val onePastTheFirstNewlineInTheGap = hit.end
                     successor.copy(position =
