@@ -31,9 +31,9 @@ object FileProcessor {
     }
   }
 
-  val edgeWhitespaceRegex: Regex = """(?s)\A\s*(\S(.*\S)?)\s*\z""".r
+  val edgeWhitespaceWithCoreTextRegex: Regex = """(?s)\A\s*(\S(?:.*\S)?)\s*\z""".r
 
-  val firstNewlineRegex: Regex = """(?s)\A[^\n]*\n""".r
+  val upToAndIncludingTheFirstNewlineRegex: Regex = """(?s)\A[^\n]*\n""".r
 
   def discoverStructure(pathOfInputFile: String, charsetOfInputFile: String, pathOfOutputFileForYamlResult: String) {
 
@@ -256,20 +256,24 @@ object FileProcessor {
           rootLevelPositionTree
         } else {
           import rootLevelPositionTree.children
-          val adjustedChildren = children flatMap {
-            case child if child.isInteresting =>
-              edgeWhitespaceRegex.findFirstMatchIn(child.position.text) match {
+          val adjustedChildren = children flatMap (child =>
+            if (child.isInteresting) {
+              edgeWhitespaceWithCoreTextRegex.findFirstMatchIn(child.position.text) match {
                 case Some(hit) =>
+                  val coreTextStart   = hit.start(1)
+                  val onePastCoreText = hit.end(1)
                   Some(
                     child.copy(
                       position = child.position
-                        .withStart(child.position.start + hit.start(1))
-                        .withEnd(child.position.start + hit.end(1))))
+                        .withStart(child.position.start + coreTextStart)
+                        .withEnd(child.position.start + onePastCoreText)))
                 case None =>
+                  // This is the case where the entire text is just whitespace. This isn't expected to occur
+                  // for an interesting construct, but is put here to avoid a compiler warning about incomplete
+                  // pattern matching.
                   None
               }
-            case child => Some(child)
-          }
+            } else Some(child))
 
           rootLevelPositionTree.copy(children = adjustedChildren)
         }
@@ -283,9 +287,11 @@ object FileProcessor {
             case (predecessor, successor) =>
               if (successor.isInteresting) {
                 val gapText = source.pos.text.slice(predecessor.position.end, successor.position.start)
-                firstNewlineRegex.findFirstMatchIn(gapText) match {
+                upToAndIncludingTheFirstNewlineRegex.findFirstMatchIn(gapText) match {
                   case Some(hit) =>
-                    successor.copy(position = successor.position.withStart(predecessor.position.end + hit.end))
+                    val onePastTheFirstNewlineInTheGap = hit.end
+                    successor.copy(position =
+                      successor.position.withStart(predecessor.position.end + onePastTheFirstNewlineInTheGap))
                   case None => successor.copy(position = successor.position.withStart(predecessor.position.end))
                 }
               } else { successor }
