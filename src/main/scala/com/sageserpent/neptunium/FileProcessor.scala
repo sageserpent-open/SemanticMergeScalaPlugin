@@ -13,9 +13,9 @@ import org.log4s._
 import resource._
 
 import scala.meta.Pat.Var
-import scala.meta.{Defn, _}
 import scala.meta.inputs.Input
-import scala.util.matching._
+import scala.meta.{Defn, _}
+import scala.util.matching.Regex
 
 object FileProcessor {
   private[this] val logger = getLogger
@@ -30,6 +30,10 @@ object FileProcessor {
       case _: Position.Range => Position.Range(position.input, position.start, end)
     }
   }
+
+  val edgeWhitespaceRegex: Regex = """(?s)\A\s*(\S(.*\S)?)\s*\z""".r
+
+  val firstNewlineRegex: Regex = """(?s)\A[^\n]*\n""".r
 
   def discoverStructure(pathOfInputFile: String, charsetOfInputFile: String, pathOfOutputFileForYamlResult: String) {
 
@@ -252,34 +256,47 @@ object FileProcessor {
           rootLevelPositionTree
         } else {
           import rootLevelPositionTree.children
-          val whitespaceRegex = """(?s)^\s*(\S(.*\S)?)\s*$""".r
-          val adjustedChildren = children flatMap { child =>
-            whitespaceRegex.findFirstMatchIn(child.position.text) match {
-              case Some(hit) =>
-                Some(
-                  child.copy(
-                    position = child.position
-                      .withStart(child.position.start + hit.start(1))
-                      .withEnd(child.position.start + hit.end(1))))
-              case None =>
-                None
-            }
+          val adjustedChildren = children flatMap {
+            case child if child.isInteresting =>
+              edgeWhitespaceRegex.findFirstMatchIn(child.position.text) match {
+                case Some(hit) =>
+                  Some(
+                    child.copy(
+                      position = child.position
+                        .withStart(child.position.start + hit.start(1))
+                        .withEnd(child.position.start + hit.end(1))))
+                case None =>
+                  None
+              }
+            case child => Some(child)
           }
 
           rootLevelPositionTree.copy(children = adjustedChildren)
         }
 
       def adjustChildPositionsToCoverTheSourceContiguously(rootLevelPositionTree: PositionTree): PositionTree =
-        if (rootLevelPositionTree.isLeaf) {
+        if (rootLevelPositionTree.isLeaf || rootLevelPositionTree.hasOnlyOneChildTree) {
           rootLevelPositionTree
         } else {
           import rootLevelPositionTree.children
           val adjustedSuccessorChildren = children zip children.tail map {
             case (predecessor, successor) =>
-              successor.copy(position = successor.position.withStart(predecessor.position.end))
+              if (successor.isInteresting) {
+                val gapText = source.pos.text.slice(predecessor.position.end, successor.position.start)
+                firstNewlineRegex.findFirstMatchIn(gapText) match {
+                  case Some(hit) =>
+                    successor.copy(position = successor.position.withStart(predecessor.position.end + hit.end))
+                  case None => successor.copy(position = successor.position.withStart(predecessor.position.end))
+                }
+              } else { successor }
           }
-          val adjustedChildren = children.head +: adjustedSuccessorChildren.toList
-          rootLevelPositionTree.copy(children = adjustedChildren)
+
+          val adjustedPredecessorChildren = (children.head +: adjustedSuccessorChildren) zip adjustedSuccessorChildren map {
+            case (predecessor, successor) =>
+              predecessor.copy(position = predecessor.position.withEnd(successor.position.start))
+          }
+
+          rootLevelPositionTree.copy(children = adjustedPredecessorChildren :+ adjustedSuccessorChildren.last)
         }
 
       val positionTreeWithInternalAdjustments = positionTree
