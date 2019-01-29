@@ -38,6 +38,14 @@ object YamlModel {
 
     def abuts(another: Span): Boolean =
       Span.floatingEmptySpan == this || Span.floatingEmptySpan == another || 1 + this.end == another.start
+
+    def mergeWithAbutting(another: Span) = {
+      require(this abuts another)
+
+      if (Span.floatingEmptySpan == this) another
+      else if (Span.floatingEmptySpan == another) this
+      else this.copy(end = another.end)
+    }
   }
 
   trait LineMapping {
@@ -49,17 +57,12 @@ object YamlModel {
       def locationSpan: LocationSpan
       def childSpans: Seq[Span]
 
-      def nonFloatingChildSpans = childSpans filterNot (_ == Span.floatingEmptySpan)
-
-      require(
-        nonFloatingChildSpans.isEmpty || Span(nonFloatingChildSpans.head.start, nonFloatingChildSpans.last.end) == spanOf(
-          locationSpan
-        )
-      )
-      require(nonFloatingChildSpans.isEmpty || (nonFloatingChildSpans zip nonFloatingChildSpans.tail forall {
+      require(childSpans zip childSpans.tail forall {
         case (predecessor, successor) =>
           predecessor abuts successor
-      }))
+      })
+
+      require(childSpans.isEmpty || childSpans.reduce(_ mergeWithAbutting _) == spanOf(locationSpan))
     }
 
     case class File(
@@ -71,9 +74,7 @@ object YamlModel {
         parsingErrorsDetected: Boolean,
         parsingErrors: Seq[ParsingError]
     ) extends Compound {
-      require(spanOf(locationSpan) abuts footerSpan)
-
-      def childSpans: Seq[Span] = children.map(child => spanOf(child.locationSpan))
+      def childSpans: Seq[Span] = children.map(child => spanOf(child.locationSpan)) :+ footerSpan
     }
 
     case class ParsingError(location: LineAndOffset, message: String)

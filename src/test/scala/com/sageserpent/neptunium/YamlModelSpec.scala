@@ -102,7 +102,7 @@ class YamlModelSpec extends FlatSpec with Matchers {
   val aParsingError = null.asInstanceOf[ParsingError]
 
   "A parsing error" should "have a location " in {
-    "aParsingError.location: LineAndOffSet" should compile
+    "aParsingError.location: LineAndOffset" should compile
   }
 
   it should "have a message" in {
