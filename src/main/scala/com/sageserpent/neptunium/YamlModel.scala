@@ -74,6 +74,9 @@ object YamlModel {
         parsingErrorsDetected: Boolean,
         parsingErrors: Seq[ParsingError]
     ) extends Compound {
+      private val entireFileSpan = Span(0, numberOfCharacters - 1)
+      require(spanOf(locationSpan) == entireFileSpan, s"${spanOf(locationSpan)} should be $entireFileSpan")
+
       def childSpans: Seq[Span] = children.map(child => spanOf(child.locationSpan)) :+ footerSpan
     }
 
