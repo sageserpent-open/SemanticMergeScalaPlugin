@@ -204,7 +204,7 @@ object FileProcessor {
 
         traverser.apply(source)
 
-        positionTreeQueue.headOption.getOrElse(PositionTree(Position.Range(input, 0, 0), Seq.empty, None))
+        positionTreeQueue.headOption.getOrElse(PositionTree(source.pos, Seq.empty, None))
       }
 
       def simplifyTreePreservingInterestingBits(rootLevelPositionTree: PositionTree): PositionTree = {
@@ -307,7 +307,21 @@ object FileProcessor {
         .transform(simplifyTreePreservingInterestingBits)
         .transform(squashTree)
         .transform(loseEdgeWhitespace)
-        .transform(adjustChildPositionsToCoverTheSourceContiguously)
+        .transform(adjustChildPositionsToCoverTheSourceContiguously) match {
+        case rootLevelPositionTree =>
+          rootLevelPositionTree.copy(
+            position = source.pos,
+            children = rootLevelPositionTree.children match {
+              case empty @ Seq()  => empty
+              case Seq(singleton) => Seq(singleton.copy(position = source.pos))
+              case twoOrMoreChildren =>
+                val (head, remainder) = twoOrMoreChildren.splitAt(1)
+                val (flanked, last)   = remainder.splitAt(remainder.size - 1)
+                head.head.copy(position = head.head.position.withStart(source.pos.start)) +: flanked :+
+                  last.head.copy(position = last.head.position.withEnd(source.pos.end))
+            }
+          )
+      }
 
       positionTreeWithInternalAdjustments match {
         case PositionTree(rootPosition, childrenOfRoot, _) =>
