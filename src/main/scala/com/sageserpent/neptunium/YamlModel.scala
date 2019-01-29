@@ -36,12 +36,14 @@ object YamlModel {
 
     def isEmpty: Boolean = this.start == 1 + this.end
 
-    def abuts(another: Span): Boolean = 1 + this.end == another.start
+    def abuts(another: Span): Boolean =
+      Span.floatingEmptySpan == this || Span.floatingEmptySpan == another || 1 + this.end == another.start
   }
 
   trait LineMapping {
     def offsetFrom(lineAndOffSet: LineAndOffset): ZeroRelativeCharacterIndex
     def spanOf(locationSpan: LocationSpan): Span = Span(offsetFrom(locationSpan.start), offsetFrom(locationSpan.end))
+    val numberOfCharacters: Int
 
     trait Compound {
       def locationSpan: LocationSpan
@@ -69,7 +71,7 @@ object YamlModel {
         parsingErrorsDetected: Boolean,
         parsingErrors: Seq[ParsingError]
     ) extends Compound {
-      require(Span.floatingEmptySpan == footerSpan || (spanOf(locationSpan) abuts footerSpan))
+      require(spanOf(locationSpan) abuts footerSpan)
 
       def childSpans: Seq[Span] = children.map(child => spanOf(child.locationSpan))
     }

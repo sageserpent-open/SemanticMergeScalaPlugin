@@ -35,8 +35,10 @@ object FileProcessor {
   def discoverStructure(pathOfInputFile: String, charsetOfInputFile: String, pathOfOutputFileForYamlResult: String) {
     val input = Input.File(Paths.get(pathOfInputFile), Charset.forName(charsetOfInputFile))
 
-    val lineMapping: LineMapping = {
-      case (line: OneRelativeLineNumber, offset: ZeroRelativeOffset) => AccessWorkaround.offsetFrom(input)(line, offset)
+    val lineMapping: LineMapping = new LineMapping {
+      override def offsetFrom(lineAndOffSet: (OneRelativeLineNumber, ZeroRelativeOffset)): ZeroRelativeCharacterIndex =
+        AccessWorkaround.offsetFrom(input)(lineAndOffSet._1, lineAndOffSet._2)
+      override val numberOfCharacters: ZeroRelativeOffset = input.chars.length
     }
 
     import lineMapping._
@@ -63,7 +65,7 @@ object FileProcessor {
 
     def fileFromError(error: Parsed.Error): File = {
       val locationSpanOfEntireSource = locationSpanFrom(
-        scala.meta.inputs.Position.Range(error.pos.input, 0, input.chars.length)
+        scala.meta.inputs.Position.Range(error.pos.input, 0, lineMapping.numberOfCharacters)
       )
 
       File(
