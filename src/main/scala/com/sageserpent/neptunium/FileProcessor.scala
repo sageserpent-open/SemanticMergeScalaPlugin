@@ -65,14 +65,14 @@ object FileProcessor {
 
     def fileFromError(error: Parsed.Error): File = {
       val locationSpanOfEntireSource = locationSpanFrom(
-        scala.meta.inputs.Position.Range(error.pos.input, 0, lineMapping.numberOfCharacters)
+        scala.meta.inputs.Position.Range(error.pos.input, 0, numberOfCharacters)
       )
 
       File(
         "file",
         pathOfInputFile,
         locationSpanOfEntireSource,
-        Span.floatingEmptySpan,
+        spanOf(locationSpanOfEntireSource),
         Seq.empty,
         parsingErrorsDetected = true,
         Seq(ParsingError(locationSpanFrom(error.pos).start, error.message))
