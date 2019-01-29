@@ -9,7 +9,6 @@ import com.sageserpent.neptunium.YamlModel._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.yaml.syntax._
-import org.log4s._
 import resource._
 
 import scala.meta.Pat.Var
@@ -18,8 +17,6 @@ import scala.meta.{Defn, _}
 import scala.util.matching.Regex
 
 object FileProcessor {
-  private[this] val logger = getLogger
-
   implicit class PositionSyntax(position: Position) {
     def withStart(start: Int): Position = position match {
       case Position.None     => Position.Range(position.input, start, start)
@@ -36,7 +33,6 @@ object FileProcessor {
   val upToAndIncludingTheFirstLinebreakRegex: Regex = """(?sm)\A.+?^""".r
 
   def discoverStructure(pathOfInputFile: String, charsetOfInputFile: String, pathOfOutputFileForYamlResult: String) {
-
     val input = Input.File(Paths.get(pathOfInputFile), Charset.forName(charsetOfInputFile))
 
     val lineMapping: LineMapping = {
@@ -67,7 +63,7 @@ object FileProcessor {
 
     def fileFromError(error: Parsed.Error): File = {
       val locationSpanOfEntireSource = locationSpanFrom(
-        scala.meta.inputs.Position.Range(error.pos.input, 0, input.chars.size)
+        scala.meta.inputs.Position.Range(error.pos.input, 0, input.chars.length)
       )
 
       File(
@@ -76,7 +72,7 @@ object FileProcessor {
         locationSpanOfEntireSource,
         Span.floatingEmptySpan,
         Seq.empty,
-        true,
+        parsingErrorsDetected = true,
         Seq(ParsingError(locationSpanFrom(error.pos).start, error.message))
       )
     }
@@ -128,11 +124,11 @@ object FileProcessor {
           children.isEmpty || (position.start <= children.head.position.start && children.last.position.end <= position.end)
         )
 
-        def isLeaf = children.isEmpty
+        def isLeaf: Boolean = children.isEmpty
 
-        def isInteresting = interestingTreeData.isDefined
+        def isInteresting: Boolean = interestingTreeData.isDefined
 
-        def hasOnlyOneChildTree = 1 == children.size
+        def hasOnlyOneChildTree: Boolean = 1 == children.size
 
         lazy val hasInterestingSubtrees: Boolean = isInteresting || children
           .exists(_.hasInterestingSubtrees)
@@ -363,7 +359,7 @@ object FileProcessor {
             else locationSpanFrom(rootPosition),
             Span.floatingEmptySpan,
             childrenOfRoot map declarationFrom,
-            false,
+            parsingErrorsDetected = false,
             Seq.empty
           )
       }

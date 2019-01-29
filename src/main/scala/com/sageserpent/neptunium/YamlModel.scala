@@ -7,21 +7,15 @@ import scala.meta.Source
 import scala.meta.parsers.Parsed
 
 object YamlModel {
-  def discoverStructure(
-      pathOfInputFile: String,
-      charsetOfInputFile: String,
-      pathOfOutputFileForYamlResult: String
-  ): Unit = ???
-
   type OneRelativeLineNumber = Int
 
   type ZeroRelativeOffset = Int
 
-  type LineAndOffSet = (OneRelativeLineNumber, ZeroRelativeOffset)
+  type LineAndOffset = (OneRelativeLineNumber, ZeroRelativeOffset)
 
   type ZeroRelativeCharacterIndex = Int
 
-  case class LocationSpan(start: LineAndOffSet, end: LineAndOffSet)
+  case class LocationSpan(start: LineAndOffset, end: LineAndOffset)
 
   object Span {
     val floatingEmptySpan = Span(0, -1)
@@ -46,7 +40,7 @@ object YamlModel {
   }
 
   trait LineMapping {
-    def offsetFrom(lineAndOffSet: LineAndOffSet): ZeroRelativeCharacterIndex
+    def offsetFrom(lineAndOffSet: LineAndOffset): ZeroRelativeCharacterIndex
     def spanOf(locationSpan: LocationSpan): Span = Span(offsetFrom(locationSpan.start), offsetFrom(locationSpan.end))
 
     trait Compound {
@@ -80,7 +74,7 @@ object YamlModel {
       def childSpans: Seq[Span] = children.map(child => spanOf(child.locationSpan))
     }
 
-    case class ParsingError(location: LineAndOffSet, message: String)
+    case class ParsingError(location: LineAndOffset, message: String)
 
     object Declaration {
       implicit val encoder: Encoder[Declaration] = {
