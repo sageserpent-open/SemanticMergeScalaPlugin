@@ -6,6 +6,7 @@ import java.nio.file.Files
 import scala.collection.JavaConverters._
 import org.scalatest.{FlatSpec, Matchers}
 import resource._
+import ichi.bench.Thyme
 
 import scala.util.matching.Regex
 
@@ -107,25 +108,29 @@ class FileProcessorSpec extends FlatSpec with Matchers {
   }
 
   it should "cope with real world Scala code" in {
-    for {
-      outputFile <- temporaryOutputYamlFile
-    } {
-      val scalaFilename = "bigLumpOfScala.scala"
-      val sourceFileUrl = getClass.getResource(scalaFilename)
+    val thyme = Thyme.warmed(verbose = Thyme.printer)
 
-      FileProcessor.discoverStructure(new File(sourceFileUrl.toURI).getAbsolutePath,
-                                      charset.name,
-                                      outputFile.getAbsolutePath)
+    thyme.pbench {
+      for {
+        outputFile <- temporaryOutputYamlFile
+      } {
+        val scalaFilename = "bigLumpOfScala.scala"
+        val sourceFileUrl = getClass.getResource(scalaFilename)
 
-      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
-      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith regex s"""${Regex.quote("name: ")}.*$scalaFilename""".r
-      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: WorldBehaviours")
-      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
-        s"name: WorldSpecUsingWorldReferenceImplementation")
-      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
-        s"name: WorldSpecUsingWorldEfficientInMemoryImplementation")
-      exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
-        s"name: WorldSpecUsingWorldRedisBasedImplementation")
+        FileProcessor.discoverStructure(new File(sourceFileUrl.toURI).getAbsolutePath,
+                                        charset.name,
+                                        outputFile.getAbsolutePath)
+
+        exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith("type: file")
+        exactly(1, Files.readAllLines(outputFile.toPath).asScala) should startWith regex s"""${Regex.quote("name: ")}.*$scalaFilename""".r
+        exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(s"name: WorldBehaviours")
+        exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
+          s"name: WorldSpecUsingWorldReferenceImplementation")
+        exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
+          s"name: WorldSpecUsingWorldEfficientInMemoryImplementation")
+        exactly(1, Files.readAllLines(outputFile.toPath).asScala) should include(
+          s"name: WorldSpecUsingWorldRedisBasedImplementation")
+      }
     }
   }
 
