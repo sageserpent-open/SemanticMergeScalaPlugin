@@ -1,5 +1,3 @@
-resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-
 lazy val neptunium = (project in file(".")).settings(
   mainClass := Some("com.sageserpent.neptunium.Main"),
   assemblyJarName in assembly := "neptunium.jar",
@@ -23,6 +21,7 @@ lazy val neptunium = (project in file(".")).settings(
   libraryDependencies += "org.scalatest"            %% "scalatest"       % "3.0.5" % "test",
   libraryDependencies += "org.scalamock"            %% "scalamock"       % "4.1.0" % "test",
   libraryDependencies += "org.scalacheck"           %% "scalacheck"      % "1.14.0" % "test",
-  libraryDependencies += "com.github.ichoran"       %% "thyme"           % "0.1.2-SNAPSHOT" % "test",
+  resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
+  libraryDependencies += "com.github.ichoran" %% "thyme" % "0.1.2-SNAPSHOT" % "test",
   resolvers += Resolver.jcenterRepo
 )
