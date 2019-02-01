@@ -315,10 +315,10 @@ object FileProcessor {
               case empty @ Seq()  => empty
               case Seq(singleton) => Seq(singleton.copy(position = source.pos))
               case twoOrMoreChildren =>
-                val (head, remainder) = twoOrMoreChildren.splitAt(1)
-                val (flanked, last)   = remainder.splitAt(remainder.size - 1)
-                head.head.copy(position = head.head.position.withStart(source.pos.start)) +: flanked :+
-                  last.head.copy(position = last.head.position.withEnd(source.pos.end))
+                val (Seq(head), remainder) = twoOrMoreChildren.splitAt(1)
+                val (flanked, Seq(last))   = remainder.splitAt(remainder.size - 1)
+                head.copy(position = head.position.withStart(source.pos.start)) +: flanked :+
+                  last.copy(position = last.position.withEnd(source.pos.end))
             }
           )
       }
