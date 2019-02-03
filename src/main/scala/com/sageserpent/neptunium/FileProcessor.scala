@@ -101,10 +101,6 @@ object FileProcessor {
         override val typeName = "module"
       }
 
-      case class PackageTreeData(override val name: String) extends InterestingTreeData {
-        override val typeName = "package"
-      }
-
       case class TypeTreeData(override val name: String) extends InterestingTreeData {
         override val typeName = "type"
       }
@@ -171,8 +167,6 @@ object FileProcessor {
                   ModuleTreeData(name.value)
                 case Defn.Type(_, name, _, _) =>
                   TypeTreeData(name.value)
-                case Pkg(name, _) =>
-                  PackageTreeData(name.toString)
               }
 
             val stackedPositionTreeQueue              = positionTreeQueue
@@ -182,7 +176,6 @@ object FileProcessor {
             valsAndExpressionsAreImportant = interestingTreeData.fold(valsAndExpressionsAreImportant) {
               case ClassTreeData(_)      => true
               case ModuleTreeData(_)     => true
-              case PackageTreeData(_)    => true
               case DefTreeData(_)        => false
               case ValTreeData(_)        => false
               case ExpressionTreeData(_) => false
