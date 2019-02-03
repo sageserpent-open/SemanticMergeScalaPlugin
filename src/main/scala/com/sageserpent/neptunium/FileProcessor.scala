@@ -234,12 +234,11 @@ object FileProcessor {
 
       def squashTree(rootLevelPositionTree: PositionTree): PositionTree = {
         if (rootLevelPositionTree.isLeaf) rootLevelPositionTree
-        else {
-          val onlyChildTree = rootLevelPositionTree.children.head
-          if (rootLevelPositionTree.hasOnlyOneChildTree && !onlyChildTree.isInteresting) {
-            rootLevelPositionTree.copy(children = onlyChildTree.children)
-          } else rootLevelPositionTree
-        }
+        else
+          rootLevelPositionTree.children match {
+            case Seq(onlyChild) if !onlyChild.isInteresting => rootLevelPositionTree.copy(children = onlyChild.children)
+            case _                                          => rootLevelPositionTree
+          }
       }
 
       def loseEdgeWhitespace(rootLevelPositionTree: PositionTree): PositionTree =
